@@ -19,8 +19,20 @@ $(BUILD)/kernel.o: arch/x86_64/kernel.c | $(BUILD)
 $(BUILD)/framebuffer.o: graphics/framebuffer.c graphics/framebuffer.h | $(BUILD)
 	$(CC) $(CFLAGS) -c "$<" -o "$@"
 
-$(BUILD)/mantle-kernel.elf: $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o linker.ld
-	$(LD) -nostdlib -z max-page-size=0x1000 -T linker.ld -o "$@" $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o
+$(BUILD)/syscall.o: syscall.c syscall.h | $(BUILD)
+	$(CC) $(CFLAGS) -c "$<" -o "$@"
+
+$(BUILD)/rootfs.o: fs/rootfs.c fs/rootfs.h | $(BUILD)
+	$(CC) $(CFLAGS) -c "$<" -o "$@"
+
+$(BUILD)/elf.o: process/elf.c process/elf.h fs/rootfs.h | $(BUILD)
+	$(CC) $(CFLAGS) -c "$<" -o "$@"
+
+$(BUILD)/process.o: process/process.c process/process.h | $(BUILD)
+	$(CC) $(CFLAGS) -c "$<" -o "$@"
+
+$(BUILD)/mantle-kernel.elf: $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o $(BUILD)/syscall.o $(BUILD)/rootfs.o $(BUILD)/elf.o $(BUILD)/process.o linker.ld
+	$(LD) -nostdlib -z max-page-size=0x1000 -T linker.ld -o "$@" $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o $(BUILD)/syscall.o $(BUILD)/rootfs.o $(BUILD)/elf.o $(BUILD)/process.o
 
 clean:
 	rm -rf "$(BUILD)"

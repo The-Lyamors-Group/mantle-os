@@ -14,7 +14,26 @@ esac
 mkdir -p "$OUT"
 rm -f "$OUT/mantleos-amd64.iso" "$OUT/mantleos-amd64.iso.sha256" "$OUT/mantleos-build-info.txt"
 rm -rf "$WORK"
-mkdir -p "$WORK/kernel" "$WORK/iso/boot/grub"
+mkdir -p "$WORK/kernel" "$WORK/userspace" "$WORK/iso/boot/grub"
+
+echo "[userspace] compilation des programmes MantleOS x86_64"
+make -C "$ROOT/userspace" BUILD="$WORK/userspace" clean all
+
+echo "[rootfs] génération du module filesystem MantleOS"
+python3 "$ROOT/userspace/build-rootfs.py" "$WORK/iso/boot/mantle-rootfs.mfs" \
+    /sbin/init="$WORK/userspace/init.elf" \
+    /bin/hello="$WORK/userspace/hello.elf" \
+    /bin/mantle="$WORK/userspace/mantle.elf" \
+    /bin/mantle-shell="$WORK/userspace/mantle-shell.elf"
+for program in init hello mantle mantle-shell; do
+    test -s "$WORK/userspace/$program.elf"
+done
+if command -v readelf >/dev/null 2>&1; then
+    for program in init hello mantle mantle-shell; do
+        readelf -h "$WORK/userspace/$program.elf" | grep -Eq 'Class:[[:space:]]+ELF64'
+        readelf -h "$WORK/userspace/$program.elf" | grep -Eq 'Machine:[[:space:]]+Advanced Micro Devices X86-64'
+    done
+fi
 
 echo "[kernel] compilation du noyau MantleOS x86_64"
 make -C "$ROOT/kernel" clean all
@@ -54,7 +73,8 @@ kernel=kernel/arch/x86_64
 commit=$commit
 build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 iso_sha256=$(cut -d' ' -f1 "$OUT/mantleos-amd64.iso.sha256")
-userspace=not-yet-implemented
+userspace=mantle-rootfs-module-ring3
+programs=/sbin/init,/bin/hello,/bin/mantle,/bin/mantle-shell
 EOF
 
 echo "[iso] OK: $OUT/mantleos-amd64.iso"

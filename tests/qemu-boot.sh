@@ -118,7 +118,7 @@ QEMU_PID=$!
 
 marker_seen=1
 for _ in $(seq 1 35); do
-    if grep -q '^MANTLE_KERNEL_OK$' "$SERIAL_LOG" 2>/dev/null; then
+    if grep -q '^MANTLE_SHELL_CONSOLE_OK$' "$SERIAL_LOG" 2>/dev/null; then
         marker_seen=0
         break
     fi
@@ -135,14 +135,22 @@ set -e
 echo "[qemu] code de sortie QEMU/timeout: $QEMU_STATUS" | tee -a "$QEMU_LOG"
 
 if [ "$marker_seen" -eq 0 ] && { [ "$QEMU_STATUS" -eq 0 ] || [ "$QEMU_STATUS" -eq 124 ]; }; then
-    echo "[qemu] phase: kernel MantleOS atteint"
-    echo "[qemu] MANTLE_KERNEL_OK"
-    if grep -q '^MANTLE_GRAPHICS_OK$' "$SERIAL_LOG" 2>/dev/null; then
-        echo "[qemu] phase: framebuffer MantleOS initialisé"
-        echo "[qemu] MANTLE_GRAPHICS_OK"
-    else
-        echo "[qemu] avertissement: framebuffer MantleOS non disponible" >&2
-    fi
+    for marker in \
+        MANTLE_KERNEL_OK \
+        MANTLE_GRAPHICS_OK \
+        MANTLE_ROOTFS_OK \
+        MANTLE_ELF_OK \
+        MANTLE_USERSPACE_OK \
+        MANTLE_INIT_USER_OK \
+        MANTLE_SHELL_CONSOLE_OK; do
+        if ! grep -q "^$marker$" "$SERIAL_LOG" 2>/dev/null; then
+            echo "[qemu] ERROR: marqueur absent: $marker" >&2
+            cat "$SERIAL_LOG" >&2 || true
+            exit 1
+        fi
+        echo "[qemu] $marker"
+    done
+    echo "[qemu] phase: userspace console MantleOS atteint"
     exit 0
 fi
 
@@ -152,12 +160,12 @@ if [ "$QEMU_STATUS" -ne 0 ] && [ "$QEMU_STATUS" -ne 124 ]; then
 elif [ ! -s "$SERIAL_LOG" ]; then
     echo "[qemu] phase en échec: firmware UEFI ou bootloader, aucune sortie série" >&2
 elif grep -q '^MANTLE_KERNEL_OK$' "$SERIAL_LOG" 2>/dev/null; then
-    echo "[qemu] phase en échec: arrêt QEMU après le marqueur kernel" >&2
+    echo "[qemu] phase en échec: userspace après démarrage du kernel" >&2
 else
     echo "[qemu] phase en échec: bootloader ou kernel avant MANTLE_KERNEL_OK" >&2
 fi
-echo "[qemu] init: non applicable — image noyau-only actuelle" >&2
-echo "[qemu] rootfs: non applicable — aucun rootfs dans l’image actuelle" >&2
+echo "[qemu] init: attendu: /sbin/init userspace" >&2
+echo "[qemu] rootfs: attendu: module MantleOS monté" >&2
 echo "[qemu] --- qemu.log ---" >&2
 cat "$QEMU_LOG" >&2 || true
 echo "[qemu] --- qemu-serial.log ---" >&2
