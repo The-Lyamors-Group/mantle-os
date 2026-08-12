@@ -50,3 +50,15 @@ construction, vérifie la frontière d’architecture, produit l’ISO, vérifie
 hash, démarre l’image en UEFI QEMU et attend `MANTLE_KERNEL_OK`. Une erreur de
 boot fait échouer le job. L’ISO et les diagnostics sont publiés comme artefacts
 uniquement après réussite.
+
+Le premier test framebuffer graphique, sans prétendre fournir encore une
+session Wayland, peut être lancé séparément :
+
+```sh
+sh ./tests/qemu-graphics.sh
+```
+
+Il attend `MANTLE_GRAPHICS_OK`, écrit uniquement après que le kernel a reçu un
+framebuffer Multiboot2 et dessiné le splash MantleOS. `MANTLE_DESKTOP_OK` n’est
+pas encore émis : aucun userspace, compositeur Wayland ou bureau n’est encore
+embarqué.

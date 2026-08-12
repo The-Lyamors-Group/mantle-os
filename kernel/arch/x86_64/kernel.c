@@ -1,4 +1,5 @@
 #include <mantle/types.h>
+#include "../../graphics/framebuffer.h"
 
 #define COM1 0x3f8u
 #define VGA_MEMORY 0xb8000u
@@ -57,12 +58,17 @@ static void print(const char *text)
     }
 }
 
-void mantle_kernel_main(void)
+void mantle_kernel_main(uint32_t multiboot_magic, uintptr_t multiboot_info)
 {
     serial_init();
     print("MantleOS\n");
     print("MantleOS kernel demarre\n");
     print("MANTLE_KERNEL_OK\n");
+    if (mantle_framebuffer_init(multiboot_magic, multiboot_info) == 0) {
+        print("MANTLE_GRAPHICS_OK\n");
+    } else {
+        print("MANTLE_GRAPHICS_UNAVAILABLE\n");
+    }
     for (;;) {
         __asm__ volatile ("hlt");
     }

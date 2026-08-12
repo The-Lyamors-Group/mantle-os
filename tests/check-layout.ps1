@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 $required = @(
   'kernel/arch/x86_64/boot.S',
   'kernel/arch/x86_64/kernel.c',
+  'kernel/graphics/framebuffer.c',
+  'kernel/graphics/framebuffer.h',
   'kernel/linker.ld',
   'kernel/Makefile',
   'include/mantle/types.h',
@@ -9,6 +11,7 @@ $required = @(
   'boot/grub/grub.cfg',
   'tests/verify-image.sh',
   'tests/qemu-boot.sh',
+  'tests/qemu-graphics.sh',
   'tests/verify-kernel-source.sh',
   'tests/check-layout.sh',
   'sources.lock'

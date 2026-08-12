@@ -137,6 +137,12 @@ echo "[qemu] code de sortie QEMU/timeout: $QEMU_STATUS" | tee -a "$QEMU_LOG"
 if [ "$marker_seen" -eq 0 ] && { [ "$QEMU_STATUS" -eq 0 ] || [ "$QEMU_STATUS" -eq 124 ]; }; then
     echo "[qemu] phase: kernel MantleOS atteint"
     echo "[qemu] MANTLE_KERNEL_OK"
+    if grep -q '^MANTLE_GRAPHICS_OK$' "$SERIAL_LOG" 2>/dev/null; then
+        echo "[qemu] phase: framebuffer MantleOS initialisé"
+        echo "[qemu] MANTLE_GRAPHICS_OK"
+    else
+        echo "[qemu] avertissement: framebuffer MantleOS non disponible" >&2
+    fi
     exit 0
 fi
 

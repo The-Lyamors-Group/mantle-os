@@ -16,8 +16,11 @@ $(BUILD)/boot.o: arch/x86_64/boot.S | $(BUILD)
 $(BUILD)/kernel.o: arch/x86_64/kernel.c | $(BUILD)
 	$(CC) $(CFLAGS) -c "$<" -o "$@"
 
-$(BUILD)/mantle-kernel.elf: $(BUILD)/boot.o $(BUILD)/kernel.o linker.ld
-	$(LD) -nostdlib -z max-page-size=0x1000 -T linker.ld -o "$@" $(BUILD)/boot.o $(BUILD)/kernel.o
+$(BUILD)/framebuffer.o: graphics/framebuffer.c graphics/framebuffer.h | $(BUILD)
+	$(CC) $(CFLAGS) -c "$<" -o "$@"
+
+$(BUILD)/mantle-kernel.elf: $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o linker.ld
+	$(LD) -nostdlib -z max-page-size=0x1000 -T linker.ld -o "$@" $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o
 
 clean:
 	rm -rf "$(BUILD)"
