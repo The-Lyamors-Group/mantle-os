@@ -10,6 +10,13 @@ sha256sum -c "$OUT/mantleos-amd64.iso.sha256"
 grep -q '^boot=UEFI+GRUB+Multiboot2$' "$OUT/mantleos-build-info.txt"
 grep -q '^kernel=kernel/arch/x86_64$' "$OUT/mantleos-build-info.txt"
 if command -v xorriso >/dev/null 2>&1; then
-    xorriso -indev "$ISO" -find /boot -type f -exec lsdl 2>/dev/null | grep -q 'mantle-kernel.elf'
+    listing=$(xorriso -indev "$ISO" -find /boot -type f -exec lsdl 2>/dev/null)
+    printf '%s\n' "$listing" | grep -q 'mantle-kernel.elf'
+    printf '%s\n' "$listing" | grep -q 'mantle-rootfs.mfs'
+    printf '%s\n' "$listing" | grep -q 'grub.cfg'
+fi
+KERNEL="$ROOT/build/work/kernel/mantle-kernel.elf"
+if command -v grub-file >/dev/null 2>&1 && [ -f "$KERNEL" ]; then
+    grub-file --is-x86-multiboot2 "$KERNEL"
 fi
 echo "[verify] image MantleOS indépendante validée"

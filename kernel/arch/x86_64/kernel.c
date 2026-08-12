@@ -102,31 +102,121 @@ struct multiboot_tag_module {
     uint32_t command_line;
 };
 
+struct multiboot_info_header {
+    uint32_t total_size;
+    uint32_t reserved;
+};
+
+static void serial_hex(uint64_t value)
+{
+    static const char digits[] = "0123456789abcdef";
+    int shift;
+    serial_putc('0');
+    serial_putc('x');
+    for (shift = 60; shift >= 0; shift -= 4) {
+        serial_putc(digits[(value >> (uint32_t)shift) & 0xfu]);
+    }
+}
+
+static void serial_decimal(uint32_t value)
+{
+    char digits[10];
+    uint32_t count = 0u;
+    if (value == 0u) {
+        serial_putc('0');
+        return;
+    }
+    while (value != 0u && count < sizeof(digits)) {
+        digits[count++] = (char)('0' + (value % 10u));
+        value /= 10u;
+    }
+    while (count != 0u) {
+        serial_putc(digits[--count]);
+    }
+}
+
+static void serial_tag(uint32_t type, uint32_t size)
+{
+    mantle_console_write("[mb2] tag type=");
+    serial_decimal(type);
+    mantle_console_write(" size=");
+    serial_decimal(size);
+    mantle_console_write("\n");
+}
+
+static int rootfs_command_line(uint32_t address)
+{
+    static const char expected[] = "mantle-rootfs";
+    const char *value = (const char *)(uintptr_t)address;
+    uint32_t index;
+    if (address == 0u) {
+        return 0;
+    }
+    for (index = 0u; index < sizeof(expected) - 1u; ++index) {
+        if (value[index] != expected[index]) {
+            return 0;
+        }
+    }
+    return value[sizeof(expected) - 1u] == '\0' || value[sizeof(expected) - 1u] == ' ';
+}
+
 static int find_rootfs(uintptr_t multiboot_info, const uint8_t **image, uint32_t *size)
 {
     const struct multiboot_tag *tag;
+    const struct multiboot_info_header *header;
     uintptr_t cursor;
+    uintptr_t end;
 
     if (multiboot_info == 0u || image == (const uint8_t **)0 || size == (uint32_t *)0) {
         return -1;
     }
+    header = (const struct multiboot_info_header *)multiboot_info;
+    if (header->total_size < 8u || header->total_size > 0x100000u) {
+        return -2;
+    }
     cursor = multiboot_info + 8u;
+    end = multiboot_info + header->total_size;
 
-    for (;;) {
+    while (cursor + sizeof(struct multiboot_tag) <= end) {
         tag = (const struct multiboot_tag *)cursor;
-        if (tag->type == 0u || tag->size < 8u) {
-            return -1;
+        serial_tag(tag->type, tag->size);
+        if (tag->size < 8u || cursor + tag->size > end ||
+            cursor + ((tag->size + 7u) & ~7u) < cursor) {
+            return -2;
+        }
+        if (tag->type == 0u) {
+            break;
         }
         if (tag->type == 3u && tag->size >= sizeof(struct multiboot_tag_module)) {
             const struct multiboot_tag_module *module = (const struct multiboot_tag_module *)tag;
-            if (module->end > module->start) {
+            mantle_console_write("[mb2] module start=");
+            serial_hex(module->start);
+            mantle_console_write(" end=");
+            serial_hex(module->end);
+            mantle_console_write(" size=");
+            serial_decimal(module->end > module->start ? module->end - module->start : 0u);
+            mantle_console_write(" cmdline=");
+            if (module->command_line != 0u) {
+                mantle_console_write((const char *)(uintptr_t)module->command_line);
+            }
+            mantle_console_write("\n");
+            if (module->end > module->start && rootfs_command_line(module->command_line)) {
                 *image = (const uint8_t *)(uintptr_t)module->start;
                 *size = module->end - module->start;
+                mantle_console_write("MANTLE_MB2_MODULE_FOUND\n");
+                mantle_console_write("ROOTFS_START=");
+                serial_hex(module->start);
+                mantle_console_write("\nROOTFS_END=");
+                serial_hex(module->end);
+                mantle_console_write("\nROOTFS_SIZE=");
+                serial_decimal(*size);
+                mantle_console_write("\n");
                 return 0;
             }
         }
         cursor += (tag->size + 7u) & ~7u;
     }
+    return -1;
 }
 
 void mantle_kernel_main(uint32_t multiboot_magic, uintptr_t multiboot_info)
@@ -140,17 +230,39 @@ void mantle_kernel_main(uint32_t multiboot_magic, uintptr_t multiboot_info)
     mantle_console_write("MantleOS\n");
     mantle_console_write("MantleOS kernel demarre\n");
     mantle_console_write("MANTLE_KERNEL_OK\n");
+    if (multiboot_magic == 0x36d76289u) {
+        mantle_console_write("MANTLE_MB2_MAGIC_OK\n");
+    } else {
+        mantle_console_write("MANTLE_MB2_MAGIC_ERROR\n");
+    }
     if (mantle_framebuffer_init(multiboot_magic, multiboot_info) == 0) {
         mantle_console_write("MANTLE_GRAPHICS_OK\n");
     } else {
         mantle_console_write("MANTLE_GRAPHICS_UNAVAILABLE\n");
     }
-    if (multiboot_magic != 0x36d76289u || find_rootfs(multiboot_info, &rootfs_image, &rootfs_size) != 0 ||
-        mantle_rootfs_mount(rootfs_image, rootfs_size) != 0) {
-        mantle_console_write("MANTLE_ROOTFS_ERROR\n");
-        for (;;) {
-            __asm__ volatile ("cli; hlt");
+    if (multiboot_magic != 0x36d76289u) {
+        mantle_console_write("MANTLE_ROOTFS_NOT_FOUND\n");
+        goto rootfs_error;
+    }
+    {
+        int lookup = find_rootfs(multiboot_info, &rootfs_image, &rootfs_size);
+        if (lookup == -2) {
+            mantle_console_write("MANTLE_ROOTFS_INVALID\n");
+            goto rootfs_error;
         }
+        if (lookup != 0) {
+            mantle_console_write("MANTLE_ROOTFS_NOT_FOUND\n");
+            goto rootfs_error;
+        }
+    }
+    if (rootfs_size > 0xffffffffu - (uint32_t)(uintptr_t)rootfs_image ||
+        (uintptr_t)rootfs_image + rootfs_size < (uintptr_t)rootfs_image) {
+        mantle_console_write("MANTLE_ROOTFS_MAPPING_ERROR\n");
+        goto rootfs_error;
+    }
+    if (mantle_rootfs_mount(rootfs_image, rootfs_size) != 0) {
+        mantle_console_write("MANTLE_ROOTFS_INVALID\n");
+        goto rootfs_error;
     }
     mantle_console_write("MANTLE_ROOTFS_OK\n");
     mantle_arch_user_memory_init();
@@ -165,6 +277,8 @@ void mantle_kernel_main(uint32_t multiboot_magic, uintptr_t multiboot_info)
     }
     mantle_console_write("MANTLE_ELF_OK\n");
     mantle_enter_user(init_image.entry, init_image.stack);
+rootfs_error:
+    mantle_console_write("MANTLE_ROOTFS_ERROR\n");
     for (;;) {
         __asm__ volatile ("cli; hlt");
     }

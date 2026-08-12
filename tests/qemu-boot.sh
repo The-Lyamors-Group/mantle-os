@@ -118,6 +118,13 @@ QEMU_PID=$!
 
 marker_seen=1
 for _ in $(seq 1 35); do
+    if grep -Eq '^MANTLE_(ROOTFS_ERROR|ROOTFS_NOT_FOUND|ROOTFS_INVALID|ROOTFS_MAPPING_ERROR)$' "$SERIAL_LOG" 2>/dev/null; then
+        echo "[qemu] ERROR: échec rootfs détecté, arrêt immédiat" >&2
+        cat "$SERIAL_LOG" >&2 || true
+        kill "$QEMU_PID" 2>/dev/null || true
+        wait "$QEMU_PID" 2>/dev/null || true
+        exit 1
+    fi
     if grep -q '^MANTLE_SHELL_CONSOLE_OK$' "$SERIAL_LOG" 2>/dev/null; then
         marker_seen=0
         break
@@ -138,6 +145,8 @@ if [ "$marker_seen" -eq 0 ] && { [ "$QEMU_STATUS" -eq 0 ] || [ "$QEMU_STATUS" -e
     for marker in \
         MANTLE_KERNEL_OK \
         MANTLE_GRAPHICS_OK \
+        MANTLE_MB2_MAGIC_OK \
+        MANTLE_MB2_MODULE_FOUND \
         MANTLE_ROOTFS_OK \
         MANTLE_ELF_OK \
         MANTLE_USERSPACE_OK \
