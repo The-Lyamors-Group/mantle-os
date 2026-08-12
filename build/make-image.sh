@@ -8,11 +8,95 @@ mkdir -p "$WORK/src" "$OUT" "$WORK/rootfs" "$WORK/iso/boot/grub"
 LINUX_VERSION=${LINUX_VERSION:-6.12.60}
 BUSYBOX_VERSION=${BUSYBOX_VERSION:-1.36.1}
 MUSL_VERSION=${MUSL_VERSION:-1.2.5}
-fetch() { url=$1; file=$2; [ -f "$file" ] || curl -fL --retry 3 --output "$file" "$url"; }
+FETCH_TMP=
+cleanup_fetch() { [ -z "$FETCH_TMP" ] || rm -f "$FETCH_TMP"; }
+trap cleanup_fetch EXIT HUP INT TERM
+source_hash() {
+    name=$1
+    version=$2
+    awk -v wanted_name="$name" -v wanted_version="$version" '($1 == wanted_name && $2 == wanted_version) { print $3; found=1; exit } END { if (!found) exit 1 }' "$ROOT/sources.lock"
+}
+verify_archive() {
+    expected=$1
+    file=$2
+    printf '%s  %s\n' "$expected" "$file" | sha256sum -c - >/dev/null
+}
+fetch() {
+    url=$1
+    file=$2
+    label=${3:-$file}
+    expected=$4
+    case "$expected" in
+        ''|*[!0-9a-fA-F]*) echo "[fetch] ERROR: hash SHA-256 invalide pour $label" >&2; return 2 ;;
+    esac
+    [ "${#expected}" -eq 64 ] || { echo "[fetch] ERROR: hash SHA-256 incomplet pour $label" >&2; return 2; }
+    if [ -f "$file" ]; then
+        if verify_archive "$expected" "$file"; then
+            echo "[fetch] cache: $label"
+            return 0
+        fi
+        echo "[fetch] cache invalide: $file — suppression" >&2
+        rm -f "$file"
+    fi
+    tmp="${file}.part"
+    FETCH_TMP=$tmp
+    echo "[fetch] $label"
+    echo "[fetch] URL: $url"
+    rm -f "$tmp"
+    if curl \
+        --fail-with-body \
+        --location \
+        --retry 5 \
+        --retry-all-errors \
+        --retry-delay 2 \
+        --connect-timeout 20 \
+        --max-time 900 \
+        --proto '=https' \
+        --tlsv1.2 \
+        --silent \
+        --show-error \
+        --output "$tmp" \
+        "$url"; then
+        :
+    else
+        status=$?
+        echo "[fetch] ERROR: curl exit $status" >&2
+        rm -f "$tmp"
+        FETCH_TMP=
+        return "$status"
+    fi
+    if ! verify_archive "$expected" "$tmp"; then
+        echo "[fetch] ERROR: SHA-256 invalide pour $label" >&2
+        rm -f "$tmp"
+        FETCH_TMP=
+        return 1
+    fi
+    if mv "$tmp" "$file"; then
+        :
+    else
+        status=$?
+        echo "[fetch] ERROR: impossible de valider $file" >&2
+        rm -f "$tmp"
+        FETCH_TMP=
+        return "$status"
+    fi
+    FETCH_TMP=
+    echo "[fetch] OK"
+}
+fetch_source() {
+    name=$1
+    version=$2
+    url=$3
+    file=$4
+    expected=$(source_hash "$name" "$version") || { echo "[fetch] ERROR: source absente de sources.lock: $name $version" >&2; return 2; }
+    locked_url=$(awk -v wanted_name="$name" -v wanted_version="$version" '($1 == wanted_name && $2 == wanted_version) { print $4; found=1; exit } END { if (!found) exit 1 }' "$ROOT/sources.lock") || { echo "[fetch] ERROR: URL absente de sources.lock: $name $version" >&2; return 2; }
+    [ "$locked_url" = "$url" ] || { echo "[fetch] ERROR: URL hors verrou pour $name $version" >&2; return 2; }
+    fetch "$url" "$file" "$name $version" "$expected"
+}
 
-fetch "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$LINUX_VERSION.tar.xz" "$WORK/src/linux-$LINUX_VERSION.tar.xz"
-fetch "https://busybox.net/downloads/busybox-$BUSYBOX_VERSION.tar.bz2" "$WORK/src/busybox-$BUSYBOX_VERSION.tar.bz2"
-fetch "https://musl.libc.org/releases/musl-$MUSL_VERSION.tar.gz" "$WORK/src/musl-$MUSL_VERSION.tar.gz"
+fetch_source linux "$LINUX_VERSION" "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$LINUX_VERSION.tar.xz" "$WORK/src/linux-$LINUX_VERSION.tar.xz"
+fetch_source busybox "$BUSYBOX_VERSION" "https://busybox.net/downloads/busybox-$BUSYBOX_VERSION.tar.bz2" "$WORK/src/busybox-$BUSYBOX_VERSION.tar.bz2"
+fetch_source musl "$MUSL_VERSION" "https://musl.libc.org/releases/musl-$MUSL_VERSION.tar.gz" "$WORK/src/musl-$MUSL_VERSION.tar.gz"
 [ -d "$WORK/linux-$LINUX_VERSION" ] || tar -xf "$WORK/src/linux-$LINUX_VERSION.tar.xz" -C "$WORK"
 [ -d "$WORK/busybox-$BUSYBOX_VERSION" ] || tar -xf "$WORK/src/busybox-$BUSYBOX_VERSION.tar.bz2" -C "$WORK"
 [ -d "$WORK/musl-$MUSL_VERSION" ] || tar -xf "$WORK/src/musl-$MUSL_VERSION.tar.gz" -C "$WORK"

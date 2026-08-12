@@ -10,7 +10,25 @@ jobs:
       - name: Install Linux build and boot dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential gcc clang bc bison flex perl python3 autoconf automake libtool gawk cmake ninja-build libssl-dev libelf-dev cpio xz-utils bzip2 curl xorriso grub-efi-amd64-bin grub-pc-bin grub-common mtools e2fsprogs util-linux imagemagick git qemu-system-x86 ovmf
+          sudo apt-get install -y build-essential gcc clang bc bison flex perl python3 autoconf automake libtool gawk cmake ninja-build libssl-dev libelf-dev cpio xz-utils bzip2 ca-certificates curl openssl xorriso grub-efi-amd64-bin grub-pc-bin grub-common mtools e2fsprogs util-linux imagemagick git qemu-system-x86 ovmf
+          sudo update-ca-certificates
+      - name: Verify TLS and official source endpoints
+        run: |
+          set -eu
+          curl --version
+          openssl version
+          ls -l /etc/ssl/certs/ca-certificates.crt
+          probe_source() {
+            url=$1
+            if curl --fail --silent --show-error --head --location --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 --proto '=https' --tlsv1.2 "$url"; then
+              return 0
+            fi
+            echo "HEAD indisponible, test GET minimal: $url" >&2
+            curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 --range 0-0 --output /dev/null --proto '=https' --tlsv1.2 "$url"
+          }
+          probe_source https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.60.tar.xz
+          probe_source https://busybox.net/downloads/busybox-1.36.1.tar.bz2
+          probe_source https://musl.libc.org/releases/musl-1.2.5.tar.gz
       - name: Build MantleOS image
         shell: bash
         run: |
