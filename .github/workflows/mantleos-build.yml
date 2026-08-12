@@ -23,6 +23,14 @@ jobs:
       - name: Verify freestanding kernel sources
         run: sh ./tests/verify-kernel-source.sh
 
+      - name: Test Multiboot2 module parser
+        run: |
+          set -eu
+          gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude \
+            tests/test-multiboot2.c kernel/boot/multiboot2.c \
+            -o build/test-multiboot2
+          ./build/test-multiboot2
+
       - name: Build MantleOS kernel and ISO
         run: |
           set -eu

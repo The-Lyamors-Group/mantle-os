@@ -3,6 +3,7 @@
 #include "../../fs/rootfs.h"
 #include "../../process/elf.h"
 #include "../../process/process.h"
+#include "../../boot/multiboot2.h"
 #include "kernel.h"
 
 #define COM1 0x3f8u
@@ -94,14 +95,6 @@ struct multiboot_tag {
     uint32_t size;
 };
 
-struct multiboot_tag_module {
-    uint32_t type;
-    uint32_t size;
-    uint32_t start;
-    uint32_t end;
-    uint32_t command_line;
-};
-
 struct multiboot_info_header {
     uint32_t total_size;
     uint32_t reserved;
@@ -144,20 +137,11 @@ static void serial_tag(uint32_t type, uint32_t size)
     mantle_console_write("\n");
 }
 
-static int rootfs_command_line(uint32_t address)
+static void serial_byte(uint8_t value)
 {
-    static const char expected[] = "mantle-rootfs";
-    const char *value = (const char *)(uintptr_t)address;
-    uint32_t index;
-    if (address == 0u) {
-        return 0;
-    }
-    for (index = 0u; index < sizeof(expected) - 1u; ++index) {
-        if (value[index] != expected[index]) {
-            return 0;
-        }
-    }
-    return value[sizeof(expected) - 1u] == '\0' || value[sizeof(expected) - 1u] == ' ';
+    static const char digits[] = "0123456789abcdef";
+    serial_putc(digits[(value >> 4u) & 0xfu]);
+    serial_putc(digits[value & 0xfu]);
 }
 
 static int find_rootfs(uintptr_t multiboot_info, const uint8_t **image, uint32_t *size)
@@ -187,27 +171,38 @@ static int find_rootfs(uintptr_t multiboot_info, const uint8_t **image, uint32_t
         if (tag->type == 0u) {
             break;
         }
-        if (tag->type == 3u && tag->size >= sizeof(struct multiboot_tag_module)) {
-            const struct multiboot_tag_module *module = (const struct multiboot_tag_module *)tag;
+        if (tag->type == 3u && tag->size >= 16u) {
+            const struct mb2_tag_module *module = (const struct mb2_tag_module *)tag;
+            struct mantle_mb2_module parsed;
+            uint32_t payload_size = tag->size - 16u;
+            uint32_t index;
             mantle_console_write("[mb2] module start=");
-            serial_hex(module->start);
+            serial_hex(module->mod_start);
             mantle_console_write(" end=");
-            serial_hex(module->end);
+            serial_hex(module->mod_end);
             mantle_console_write(" size=");
-            serial_decimal(module->end > module->start ? module->end - module->start : 0u);
+            serial_decimal(module->mod_end > module->mod_start ? module->mod_end - module->mod_start : 0u);
             mantle_console_write(" cmdline=");
-            if (module->command_line != 0u) {
-                mantle_console_write((const char *)(uintptr_t)module->command_line);
+            for (index = 0u; index < payload_size; ++index) {
+                if (module->cmdline[index] == '\0') {
+                    break;
+                }
+                serial_putc(module->cmdline[index]);
             }
             mantle_console_write("\n");
-            if (module->end > module->start && rootfs_command_line(module->command_line)) {
-                *image = (const uint8_t *)(uintptr_t)module->start;
-                *size = module->end - module->start;
+            mantle_console_write("[mb2] cmdline hex=");
+            for (index = 0u; index < payload_size; ++index) {
+                serial_byte((uint8_t)module->cmdline[index]);
+                serial_putc(index + 1u == payload_size ? '\n' : ' ');
+            }
+            if (mantle_mb2_parse_module(module, tag->size, &parsed) == 0) {
+                *image = (const uint8_t *)parsed.start;
+                *size = parsed.size;
                 mantle_console_write("MANTLE_MB2_MODULE_FOUND\n");
                 mantle_console_write("ROOTFS_START=");
-                serial_hex(module->start);
+                serial_hex(parsed.start);
                 mantle_console_write("\nROOTFS_END=");
-                serial_hex(module->end);
+                serial_hex(parsed.end);
                 mantle_console_write("\nROOTFS_SIZE=");
                 serial_decimal(*size);
                 mantle_console_write("\n");
