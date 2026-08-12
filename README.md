@@ -7,12 +7,13 @@ Le projet est axé sur la confidentialité, la sécurité, la compatibilité, la
 simplicité et les standards ouverts. MantleOS est indépendant de Linux comme
 noyau. Il est encore expérimental.
 
-> ![DANGER] MantleOS appartient à <a href="https://github.com/The-Lyamors-Group" target="_blank">The Lyamors Group®</a>
+> [!IMPORTANT]
+> **MantleOS®** est un projet de [The Lyamors Group®](https://github.com/The-Lyamors-Group).
+
 ---
 
-> [!INFO] MantleOS n’est ni certifié ni homologué par l’ANSSI, la DGSI ou l’État
-> français. Ne l’utilisez pas comme système principal ou dans un environnement
-> critique.
+> [!WARNING]
+> MantleOS est actuellement en développement. Il n’est ni certifié ni homologué par l’ANSSI, la DGSI ou l’État français. Ne l’utilisez pas comme système principal ou dans un environnement critique à ce stade.
 
 ## Télécharger MantleOS
 
