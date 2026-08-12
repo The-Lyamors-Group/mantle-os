@@ -50,19 +50,20 @@ mkdir -p "$WORK/rootfs/bin" "$WORK/rootfs/sbin" "$WORK/rootfs/usr/bin" "$WORK/ro
 make -C "$B" CONFIG_PREFIX="$WORK/rootfs" install
 
 CC="$WORK/sysroot/bin/musl-gcc"
+STRICT_CFLAGS="-std=c11 -Wall -Wextra -Wpedantic -Werror -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 COMPAT_PROFILE=${MANTLE_COMPAT:-full}
 sh "$ROOT/compat/build-compat.sh" "$WORK/rootfs" "$WORK/sysroot" "$WORK/src" "$CC" "$COMPAT_PROFILE"
 if [ "${MANTLE_SDK:-0}" = 1 ]; then sh "$ROOT/compat/build-sdk.sh" "$WORK/rootfs" "$WORK/sysroot" "$WORK/src" "$CC"; fi
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-init" "$ROOT/system/mantle-root-init.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-supervise" "$ROOT/services/mantle-supervise.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/bin/mantlectl" "$ROOT/services/mantlectl.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle" "$ROOT/services/mantle.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/bin/mantle-shell" "$ROOT/shell/mantle-shell.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle-script" "$ROOT/scripting/mantle-script.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle-command" "$ROOT/scripting/mantle-command.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-network" "$ROOT/system/mantle-network.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-logd" "$ROOT/system/mantle-logd.c"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-splash" "$ROOT/boot/splash/mantle-splash.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-init" "$ROOT/system/mantle-root-init.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-supervise" "$ROOT/services/mantle-supervise.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/bin/mantlectl" "$ROOT/services/mantlectl.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle" "$ROOT/services/mantle.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/bin/mantle-shell" "$ROOT/shell/mantle-shell.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle-script" "$ROOT/scripting/mantle-script.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle-command" "$ROOT/scripting/mantle-command.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-network" "$ROOT/system/mantle-network.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-logd" "$ROOT/system/mantle-logd.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-splash" "$ROOT/boot/splash/mantle-splash.c"
 chmod 0755 "$WORK/rootfs/sbin/mantle-init" "$WORK/rootfs/sbin/mantle-supervise" "$WORK/rootfs/bin/mantlectl"
 chmod 0755 "$WORK/rootfs/usr/bin/mantle" "$WORK/rootfs/usr/bin/mantle-script" "$WORK/rootfs/usr/bin/mantle-command"
 chmod 0755 "$WORK/rootfs/bin/mantle-shell"
@@ -118,8 +119,9 @@ chmod 0440 "$WORK/rootfs/etc/sudoers"
 chown -R 1000:1000 "$WORK/rootfs/home/mantle"
 cat > "$WORK/rootfs/etc/mantleos/dhcp.script" <<'EOF'
 #!/bin/sh
+set -eu
 case "$1" in
- bound|renew) printf '%s\n' "nameserver ${dns:-1.1.1.1}" > /etc/resolv.conf; [ -n "$domain" ] && printf 'search %s\n' "$domain" >> /etc/resolv.conf; hostname "${hostname:-mantle}"; mkdir -p /run/mantle; touch /run/mantle/network.ready;;
+ bound|renew) [ -n "${ip:-}" ] && [ -n "${subnet:-}" ] && /bin/ip addr replace "${ip}/${subnet}" dev "${interface}"; if [ -n "${router:-}" ]; then /bin/ip route replace default via "${router}" dev "${interface}"; else exit 1; fi; printf '%s\n' "nameserver ${dns:-1.1.1.1}" > /etc/resolv.conf; [ -n "${domain:-}" ] && printf 'search %s\n' "$domain" >> /etc/resolv.conf; hostname "${hostname:-mantle}"; mkdir -p /run/mantle; touch /run/mantle/network.ready;;
 esac
 EOF
 chmod 0755 "$WORK/rootfs/etc/mantleos/dhcp.script"
@@ -154,6 +156,7 @@ mkdir -p "$WORK/rootfs/usr/share/mantleos"
 mkdir -p "$WORK/rootfs/usr/share/mantleos/site"
 cp -a "$ROOT/site/." "$WORK/rootfs/usr/share/mantleos/site/"
 sh "$ROOT/tests/language-tests.sh" "$WORK/rootfs"
+sh "$ROOT/tests/package-tests.sh" "$WORK/rootfs"
 mkdir -p "$WORK/rootfs/usr/share/mime/packages" "$WORK/rootfs/usr/share/applications"
 cp "$ROOT/apps/mime/mantle.xml" "$WORK/rootfs/usr/share/mime/packages/mantle.xml"
 cp "$ROOT/apps/mime/mantle-script.desktop" "$WORK/rootfs/usr/share/applications/mantle-script.desktop"

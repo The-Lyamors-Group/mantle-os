@@ -3,7 +3,7 @@ set -eu
 ROOTFS=${1:?rootfs path required}
 TESTS=/usr/share/mantleos/tests
 mkdir -p "$ROOTFS$TESTS"
-cp tests/fixtures/hello.mt tests/fixtures/update.mtc tests/fixtures/invalid.mt tests/fixtures/security.mt "$ROOTFS$TESTS/"
+cp tests/fixtures/hello.mt tests/fixtures/update.mtc tests/fixtures/invalid.mt tests/fixtures/security.mt tests/fixtures/boot.mt tests/fixtures/boot.mtc "$ROOTFS$TESTS/"
 chroot "$ROOTFS" /usr/bin/mantle run "$TESTS/hello.mt" >/tmp/mantle-script-test.out
 grep -q 'Installation de mantle-test' /tmp/mantle-script-test.out
 chroot "$ROOTFS" /usr/bin/mantle exec "$TESTS/update.mtc"
@@ -15,4 +15,7 @@ grep -q pipe-value /tmp/mantle-shell-test.out
 if chroot "$ROOTFS" /bin/mantle-shell -c 'mantle-command-does-not-exist' >/dev/null 2>&1; then exit 1; fi
 chroot "$ROOTFS" /bin/mantle-shell -c 'printf redirect-value > /tmp/mantle-shell-redirection'
 grep -q redirect-value "$ROOTFS/tmp/mantle-shell-redirection"
+chroot "$ROOTFS" /usr/bin/mantle-script "$TESTS/boot.mt" >/tmp/mantle-boot-mt.out
+grep -q boot-script /tmp/mantle-boot-mt.out
+chroot "$ROOTFS" /usr/bin/mantle-command "$TESTS/boot.mtc"
 echo 'Mantle language checks: OK'

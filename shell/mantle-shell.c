@@ -61,6 +61,7 @@ static int run_line(const char *line) {
     for(int i=0;i<count;i++){for(int j=0;j<cmds[i].argc;j++)free(cmds[i].argv[j]);free(cmds[i].input);free(cmds[i].output);}last_status=last;return last;
 }
 int main(int argc,char **argv){
+    if(argc>1&&(!strcmp(argv[1],"--version")||!strcmp(argv[1],"-V"))){puts("mantle-shell 0.1 (MantleOS)");return 0;}
     if(argc>1&&!strcmp(argv[1],"-c")){if(argc<3)return 2;return run_line(argv[2]);}
     char *line=NULL;size_t cap=0;int status=0;while(1){if(isatty(0)){fputs("mantle> ",stdout);fflush(stdout);}ssize_t n=getline(&line,&cap,stdin);if(n<0)break;status=run_line(line);}free(line);return status;
 }
