@@ -31,6 +31,13 @@ jobs:
             -o build/test-multiboot2
           ./build/test-multiboot2
 
+      - name: Test ring3 iret frame layout
+        run: |
+          set -eu
+          gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude \
+            tests/test-ring3-frame.c -o build/test-ring3-frame
+          ./build/test-ring3-frame
+
       - name: Build MantleOS kernel and ISO
         run: |
           set -eu

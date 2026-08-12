@@ -12,6 +12,7 @@
 static uint16_t vga_cursor;
 
 uint8_t mantle_user_memory[0x200000u] __attribute__((aligned(4096)));
+volatile uint32_t mantle_syscall_origin_user;
 extern uint64_t user_page_table[];
 extern uint64_t mantle_gdt[];
 extern uint64_t mantle_pd_table0[];
@@ -95,7 +96,9 @@ void mantle_arch_user_memory_init(void)
 
 void mantle_arch_syscall_init(void)
 {
-    write_msr(0xc0000081u, (0x10ull << 48u) | (0x08ull << 32u));
+    /* STAR[63:48] is the user SYSRET base.  0x13 + 16 = CS 0x23 and
+       0x13 + 8 = SS 0x1b; STAR[47:32] is the kernel CS 0x08. */
+    write_msr(0xc0000081u, (0x13ull << 48u) | (0x08ull << 32u));
     write_msr(0xc0000082u, (uint64_t)(uintptr_t)mantle_syscall_entry);
     write_msr(0xc0000084u, 0x200ull);
 }
@@ -249,9 +252,9 @@ static int ring3_diagnostics(uintptr_t entry, uintptr_t stack)
     __asm__ volatile ("mov %%cr3, %0" : "=r" (cr3));
     mantle_console_write("USER_ENTRY="); serial_hex(entry);
     mantle_console_write("\nUSER_STACK_TOP="); serial_hex(stack);
-    mantle_console_write("\nUSER_CS=0x20\nUSER_SS=0x18\nUSER_RFLAGS=0x2\nCR3=");
+    mantle_console_write("\nUSER_CS=0x23\nUSER_SS=0x1b\nUSER_RFLAGS=0x2\nCR3=");
     serial_hex(cr3);
-    mantle_console_write("\nMANTLE_RING3_ENTRY_READY\nMANTLE_RING3_IRET\n");
+    mantle_console_write("\nMANTLE_RING3_ENTRY_OK\nMANTLE_RING3_IRET\n");
     return 1;
 }
 
@@ -428,7 +431,7 @@ void mantle_kernel_main(uint32_t multiboot_magic, uintptr_t multiboot_info)
     mantle_arch_user_memory_init();
     mantle_arch_syscall_init();
     mantle_process_init();
-    if (mantle_rootfs_open("/sbin/init", &init_file) != 0 ||
+    if (mantle_rootfs_open("/bin/hello", &init_file) != 0 ||
         mantle_elf_load(init_file.data, init_file.size, &init_image) != 0) {
         mantle_console_write("MANTLE_ELF_ERROR\n");
         for (;;) {

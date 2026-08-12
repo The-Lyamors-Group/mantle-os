@@ -33,6 +33,23 @@ struct file_descriptor {
 
 static struct file_descriptor descriptors[MAX_FDS];
 static int user_marker_seen;
+static int hello_finished;
+extern volatile uint32_t mantle_syscall_origin_user;
+
+static int load_next_user(struct mantle_syscall_frame *frame, const char *path)
+{
+    struct mantle_rootfs_file file;
+    struct mantle_user_image image;
+
+    if (mantle_rootfs_open(path, &file) != 0 ||
+        mantle_elf_load(file.data, file.size, &image) != 0) {
+        return -1;
+    }
+    frame->rip = image.entry;
+    frame->rsp = image.stack;
+    frame->rax = 0u;
+    return 0;
+}
 
 static inline uint8_t inb(uint16_t port)
 {
@@ -175,8 +192,9 @@ void mantle_syscall_dispatch(struct mantle_syscall_frame *frame)
     struct mantle_process *process = mantle_current_process();
     int32_t result = -1;
 
-    if (!user_marker_seen) {
+    if (!user_marker_seen && mantle_syscall_origin_user != 0u) {
         user_marker_seen = 1;
+        mantle_syscall_origin_user = 0u;
         mantle_console_write("MANTLE_USERSPACE_OK\n");
     }
     switch ((uint32_t)frame->rax) {
@@ -247,6 +265,12 @@ void mantle_syscall_dispatch(struct mantle_syscall_frame *frame)
         }
         break;
     case SYS_EXIT:
+        if (!hello_finished && load_next_user(frame, "/sbin/init") == 0) {
+            hello_finished = 1;
+            process->state = MANTLE_PROCESS_READY;
+            process->exit_code = (int32_t)frame->rdi;
+            break;
+        }
         process->state = MANTLE_PROCESS_EXITED;
         process->exit_code = (int32_t)frame->rdi;
         mantle_console_write("MANTLE_USERSPACE_EXIT\n");

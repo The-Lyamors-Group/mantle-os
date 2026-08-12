@@ -220,12 +220,12 @@ mantle_enter_user:
     mov $0x18, %ax
     mov %ax, %ds
     mov %ax, %es
-    mov $0x18, %rax
+    mov $0x1b, %rax
     push %rax
     push %rsi
     mov $0x2, %rax
     push %rax
-    mov $0x20, %rax
+    mov $0x23, %rax
     push %rax
     push %rdi
     iretq
@@ -235,6 +235,7 @@ mantle_enter_user:
 .extern mantle_syscall_dispatch
 mantle_syscall_entry:
     cld
+    movl $1, mantle_syscall_origin_user(%rip)
     mov %r11, syscall_saved_rflags(%rip)
     mov %rsp, syscall_saved_user_rsp(%rip)
     mov $syscall_stack_top, %rsp

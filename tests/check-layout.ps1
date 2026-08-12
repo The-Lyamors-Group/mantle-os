@@ -28,6 +28,7 @@ $required = @(
   'boot/grub/grub.cfg',
   'tests/verify-image.sh',
   'tests/test-multiboot2.c',
+  'tests/test-ring3-frame.c',
   'tests/verify-userspace.sh',
   'tests/qemu-boot.sh',
   'tests/qemu-graphics.sh',

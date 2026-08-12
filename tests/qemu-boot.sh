@@ -156,7 +156,7 @@ if [ "$marker_seen" -eq 0 ] && { [ "$QEMU_STATUS" -eq 0 ] || [ "$QEMU_STATUS" -e
         MANTLE_USER_STACK_OK \
         MANTLE_RING3_STACK_OK \
         MANTLE_RING3_PAGING_OK \
-        MANTLE_RING3_ENTRY_READY \
+        MANTLE_RING3_ENTRY_OK \
         MANTLE_RING3_IRET \
         MANTLE_USERSPACE_OK \
         MANTLE_INIT_USER_OK \
