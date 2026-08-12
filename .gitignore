@@ -1,3 +1,5 @@
 build/work/
 build/out/
 *.swp
+.kombai/
+push.md

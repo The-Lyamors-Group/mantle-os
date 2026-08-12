@@ -22,7 +22,16 @@ $required = @(
   'tests/fixtures/boot.mt',
   'tests/fixtures/boot.mtc',
   'tests/package-tests.sh',
-  'tests/host-sanitizers.sh'
+  'tests/host-sanitizers.sh',
+  'ui/design-system/components.css',
+  'ui/design-system/README.md',
+  'ui/shell/mantle-shell-state.c',
+  'ui/shell/mantle-shell-state.h',
+  'ui/shell/test-state.c',
+  'ui/compositor/README.md',
+  'ui/login/README.md',
+  'ui/notifications/README.md',
+  'ui/settings/README.md'
 )
 foreach ($path in $required) { if (-not (Test-Path $path)) { throw "Fichier absent: $path" } }
 $mt = Get-Content -Raw tests/fixtures/hello.mt

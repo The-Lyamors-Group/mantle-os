@@ -1,0 +1,19 @@
+@import url("tokens.css");
+
+/* Mantle primitives shared by the local site and future native surfaces. */
+.mantle-surface { background: var(--mantle-panel); color: var(--mantle-ink); border: 1px solid var(--mantle-line); border-radius: var(--mantle-radius-md); }
+.mantle-button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 var(--mantle-space-4); border: 1px solid var(--mantle-line); border-radius: var(--mantle-radius-sm); background: var(--mantle-panel); color: var(--mantle-ink); font: inherit; cursor: pointer; transition: background var(--mantle-motion-fast), border-color var(--mantle-motion-fast), transform var(--mantle-motion-fast); }
+.mantle-button:hover { background: color-mix(in srgb, var(--mantle-blue) 8%, var(--mantle-panel)); border-color: var(--mantle-blue); }
+.mantle-button:active { transform: translateY(1px); }
+.mantle-button:focus-visible, .mantle-input:focus-visible { outline: none; box-shadow: var(--mantle-focus-ring); }
+.mantle-button[data-variant="primary"] { background: var(--mantle-blue); border-color: var(--mantle-blue); color: #fff; }
+.mantle-button[data-variant="danger"] { color: var(--mantle-danger); }
+.mantle-input { min-height: 36px; padding: 0 var(--mantle-space-3); border: 1px solid var(--mantle-line); border-radius: var(--mantle-radius-sm); background: var(--mantle-panel); color: var(--mantle-ink); font: inherit; }
+.mantle-nav-item { display: flex; align-items: center; gap: var(--mantle-space-3); min-height: 40px; padding: 0 var(--mantle-space-3); border-radius: var(--mantle-radius-sm); color: var(--mantle-ink-soft); text-decoration: none; }
+.mantle-nav-item[aria-current="page"], .mantle-nav-item:hover { background: color-mix(in srgb, var(--mantle-blue) 10%, transparent); color: var(--mantle-ink); }
+.mantle-status { display: inline-flex; align-items: center; gap: var(--mantle-space-2); font-size: var(--mantle-font-size-sm); }
+.mantle-status::before { width: 8px; height: 8px; border-radius: 50%; background: var(--mantle-muted); content: ""; }
+.mantle-status[data-state="ok"]::before { background: var(--mantle-green); }
+.mantle-status[data-state="warning"]::before { background: var(--mantle-amber); }
+.mantle-status[data-state="error"]::before { background: var(--mantle-danger); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
