@@ -1,178 +1,210 @@
 # MantleOS
 
-MantleOS est un système d’exploitation français et européen, open source,
-construit indépendamment de Linux comme noyau et orienté confidentialité,
-sécurité, compatibilité et souveraineté numérique.
+MantleOS est un système d’exploitation français open source qui cherche à
+offrir un ordinateur plus privé, plus compréhensible et plus souverain.
 
-> MantleOS est en développement. Le projet n’est ni certifié, ni homologué,
-> ni approuvé par l’ANSSI, la DGSI ou une administration.
+Le projet est axé sur la confidentialité, la sécurité, la compatibilité, la
+simplicité et les standards ouverts. MantleOS est indépendant de Linux comme
+noyau. Il est encore expérimental.
 
-## Vision
+> ![DANGER] MantleOS appartient à <a href="https://github.com/The-Lyamors-Group" target="_blank">The Lyamors Group®</a>
+---
 
-MantleOS vise un ordinateur local contrôlable : pas de télémétrie obligatoire,
-pas de publicité, pas de compte cloud imposé, pas de collecte silencieuse, des
-standards ouverts et une architecture auditable. La compatibilité Unix/Linux
-concernera le futur userspace ; elle ne signifie pas que Linux est le noyau de
-MantleOS.
+> [!INFO] MantleOS n’est ni certifié ni homologué par l’ANSSI, la DGSI ou l’État
+> français. Ne l’utilisez pas comme système principal ou dans un environnement
+> critique.
+
+## Télécharger MantleOS
+
+### Je débute, que dois-je télécharger ?
+
+Pour un PC Intel ou AMD classique en 64 bits, le fichier à télécharger sera :
+
+**mantleos-amd64.iso**
+
+Une ISO est un fichier qui contient les fichiers nécessaires pour démarrer un
+système depuis une machine virtuelle ou une clé USB. Une version publique n’est
+pas encore disponible : le dernier build doit d’abord passer la validation de
+boot UEFI dans QEMU.
+
+**Aucune version publique n’est encore disponible.**
+
+Vous pouvez [voir les builds de développement](https://github.com/The-Lyamors-Group/mantle-os/actions/workflows/mantleos-build.yml), qui sont expérimentaux et ne doivent pas être confondus avec une version stable.
+
+Quand une version sera validée, elle sera publiée dans les
+[Releases MantleOS](https://github.com/The-Lyamors-Group/mantle-os/releases) avec
+les fichiers suivants :
+
+- mantleos-amd64.iso ;
+- mantleos-amd64.iso.sha256 ;
+- mantleos-build-info.txt.
+
+À côté de chaque ISO publiée, son empreinte SHA-256 permettra de vérifier que
+le téléchargement n’a pas été modifié.
+
+Windows PowerShell :
+
+~~~powershell
+Get-FileHash .\mantleos-amd64.iso -Algorithm SHA256
+~~~
+
+Linux :
+
+~~~bash
+sha256sum mantleos-amd64.iso
+~~~
+
+## Essayer MantleOS sans l’installer
+
+Le moyen prévu pour essayer MantleOS est une machine virtuelle : un ordinateur
+simulé dans une fenêtre, qui ne modifie pas votre disque principal.
+
+QEMU est l’outil utilisé par la CI du projet pour démarrer l’ISO avec un
+firmware UEFI. La commande de test est documentée pour les développeurs plus
+bas. Le dernier résultat public connu a validé la compilation et la génération
+de l’ISO, mais le boot QEMU doit être revalidé après les corrections de
+diagnostic en cours.
+
+Aucun autre hyperviseur n’est déclaré testé à ce stade.
+
+## Installer MantleOS
+
+L’installateur graphique n’est pas encore fonctionnel. MantleOS ne fournit donc
+pas aujourd’hui de procédure d’installation recommandée sur un disque réel.
+
+N’écrivez pas une ISO expérimentale sur un disque contenant des données utiles.
+
+## Configuration requise
+
+| Élément | Minimum théorique | Configuration réellement testée |
+| --- | --- | --- |
+| Architecture | x86_64, processeur Intel/AMD 64 bits | x86_64 dans QEMU |
+| Mémoire | 256 Mo pour le noyau minimal | 256 Mo configurés dans QEMU |
+| Stockage | Aucun disque pour l’image actuelle | Aucun disque invité utilisé |
+| Firmware | UEFI avec GRUB | OVMF dans QEMU, validation en cours |
+| CPU | x86_64 avec mode long | CPU virtuel QEMU x86_64 |
+| Virtualisation | Non nécessaire avec TCG ; KVM accélère Linux | TCG prévu sans KVM |
+
+Ces valeurs concernent le noyau minimal actuel, pas un futur système de bureau.
 
 ## État du projet
 
-Le niveau réellement atteint est :
+| Composant | État réel |
+| --- | --- |
+| Build du kernel MantleOS | Compilé et linké dans la CI |
+| Image ISO | Générée par la CI |
+| Boot UEFI | Expérimental, validation QEMU en cours |
+| Kernel x86_64 | Minimal, affiche un marqueur série puis reste stable |
+| Console VGA/série | Expérimentale |
+| Mantle Shell | Non embarqué dans l’image actuelle |
+| Réseau | Non disponible dans l’image actuelle |
+| Interface graphique | En développement, non embarquée |
+| Installateur | Non disponible |
+| Gestionnaire de paquets | Non disponible dans l’image actuelle |
+| Utilisation quotidienne | Non recommandée |
 
-- noyau x86_64 MantleOS minimal compilé depuis `kernel/` ;
-- image ISO GRUB/UEFI avec chargement Multiboot2 ;
-- sortie console VGA et série COM1 ;
-- marqueur de boot `MANTLE_KERNEL_OK` ;
-- build reproductible et test QEMU UEFI dans GitHub Actions ;
-- userspace, libc, services, réseau, interface graphique et installateur encore
-  indisponibles dans l’image indépendante actuelle.
+Les termes « compilé » et « généré » ne signifient pas qu’une fonction est
+stable. Une fonction n’est annoncée comme validée qu’après le test correspondant
+dans la CI.
 
-Le boot n’est déclaré validé qu’après le test QEMU de la CI. Aucun résultat
-local non exécuté ne doit être présenté comme un boot réussi.
+## Pour les utilisateurs Unix/Linux
 
-## Fonctionnalités
+Le dépôt conserve les travaux préparatoires d’un futur userspace MantleOS. Les
+commandes curl, Git, SSH, les outils Unix, les scripts .mt, les commandes .mtc
+et les paquets .mtpkg ne sont pas disponibles dans l’image noyau actuelle.
+Ils seront reconnectés après l’implémentation de la libc, de l’ABI et des appels
+système MantleOS.
 
-### Fonctionnel dans la fondation actuelle
+## Pour les développeurs
 
-- compilation freestanding du noyau MantleOS avec GCC et binutils ;
-- passage x86_64 long mode, GDT et pagination identité initiale ;
-- affichage VGA et port série ;
-- génération de `build/out/mantleos-amd64.iso` ;
-- hash SHA-256, informations de build et contrôle Multiboot2 ;
-- démarrage automatisé avec GRUB, UEFI/OVMF et QEMU.
+### Récupérer le dépôt
 
-### Expérimental ou non embarqué
+~~~bash
+git clone https://github.com/The-Lyamors-Group/mantle-os.git
+cd mantle-os
+~~~
 
-Les sources historiques de `init/`, `system/`, `services/`, `shell/`,
-`scripting/` et `compat/` sont conservées pour leur valeur de travail, mais ne
-sont pas compilées ni exécutées par la chaîne noyau actuelle. Elles ne
-constituent pas encore un userspace MantleOS fonctionnel.
+### Construire
 
-### Prévu
+Sur Linux, avec GCC, binutils, Make, GRUB, xorriso et mtools :
 
-libc et ABI MantleOS, mémoire, interruptions, pilotes, scheduler, appels
-système, processus, stockage, réseau, shell, session Wayland, Mantle Shell,
-Settings, Files, Terminal, Software, mises à jour et installateur.
-
-## Architecture
-
-```text
-UEFI → GRUB → Multiboot2 → noyau MantleOS → VGA/COM1 → état idle stable
-```
-
-Le noyau est entièrement dans ce dépôt : `kernel/arch/x86_64/boot.S`,
-`kernel/arch/x86_64/kernel.c` et `kernel/linker.ld`. Il ne lie aucune libc et
-ne démarre ni Linux, ni BusyBox, ni un initramfs ou rootfs Linux. GRUB est
-conservé comme bootloader pragmatique et QEMU/OVMF comme environnement de test.
-
-## Structure du dépôt
-
-```text
-kernel/     noyau freestanding MantleOS et sous-systèmes à venir
-arch/       frontières d’architecture futures
-boot/       configuration GRUB et ressources de boot
-libc/       frontière de la future libc MantleOS
-userspace/  frontière du futur userspace
-shell/      sources préparatoires du shell MantleOS
-include/    en-têtes partagés
-init/       anciens travaux userspace conservés, non actifs
-services/   anciens travaux de services conservés, non actifs
-ui/         design system et futures interfaces
-apps/       applications et intégrations futures
-site/       présentation locale statique hors ligne
-tests/      tests de layout, image et boot QEMU
-docs/       architecture, build, sécurité et formats
-build/      génération de l’ISO et artefacts
-```
-
-## Build
-
-Sur Linux ou dans le conteneur de build :
-
-```sh
+~~~bash
 MANTLE_PROFILE=personal sh ./build.sh
-```
+~~~
 
-Profils acceptés : `personal`, `education`, `government`. Ils sont enregistrés
-dans les métadonnées ; les politiques spécialisées ne sont pas encore
-implémentées.
+Sous Windows, Docker Desktop Linux est nécessaire :
 
-Sous Windows avec Docker Desktop Linux :
-
-```powershell
+~~~powershell
 .\build.ps1 -Profile personal
-```
+~~~
 
-Sorties :
+Le résultat attendu est :
 
-```text
+~~~text
 build/out/mantleos-amd64.iso
 build/out/mantleos-amd64.iso.sha256
 build/out/mantleos-build-info.txt
 build/out/build.log
-```
+~~~
 
-## Test en VM
+### Vérifier et tester
 
-Après le build :
-
-```sh
+~~~bash
 sh ./tests/verify-image.sh
 sh ./tests/qemu-boot.sh
-```
+~~~
 
-La seconde commande utilise OVMF et QEMU, privilégie KVM quand disponible et
-capture `build/out/qemu-serial.log`. Elle échoue si le noyau ne produit pas
-`MANTLE_KERNEL_OK` dans le délai prévu.
+Le test QEMU utilise OVMF, un firmware UEFI libre, et attend le marqueur
+MANTLE_KERNEL_OK sur la sortie série. Il utilise KVM si disponible, sinon TCG,
+un mode d’émulation sans accélération matérielle.
 
-Commande interactive :
+### CI et Releases
 
-```sh
-sh ./build/test-qemu.sh
-```
+GitHub Actions compile le kernel depuis ce dépôt, crée l’ISO, vérifie son hash
+et tente le boot UEFI dans QEMU. Les builds de branches restent des builds de
+développement. Une Release n’est créée que lorsqu’un tag v* est poussé et que
+toutes les étapes de compilation, vérification et boot ont réussi.
 
-## Scripts, paquets et site local
+Exemple :
 
-Les formats `.mt`, `.mtc` et `.mtpkg` sont documentés comme travaux futurs et
-ne sont pas des composants exécutables de l’ISO actuelle. Leur présence dans
-le dépôt ne doit pas être confondue avec une fonctionnalité déjà disponible.
+~~~bash
+git tag v0.1.0-alpha
+git push origin v0.1.0-alpha
+~~~
 
-`site/` reste une page statique de présentation hors ligne. Il n’est ni un
-panneau d’administration, ni une dépendance de boot, et n’utilise pas de CDN,
-police distante, analytics ou tracker.
+Cette commande ne doit être utilisée qu’après revue du code et validation du
+résultat attendu. Une Release publiée n’est pas automatiquement une version
+stable.
+
+### Architecture interne
+
+~~~text
+UEFI → GRUB → Multiboot2 → kernel/arch/x86_64 → VGA + COM1
+~~~
+
+Le noyau actuel initialise le mode long x86_64, une table de pages minimale,
+une GDT, la console VGA et le port série. Il n’utilise ni noyau Linux, ni libc,
+ni rootfs, ni initramfs. Les répertoires memory/, interrupts/, drivers/,
+syscall/ et scheduler/ sont préparés pour les prochaines étapes.
+
+Voir docs/ARCHITECTURE.md et docs/BUILDING.md pour les détails techniques.
 
 ## Sécurité et confidentialité
 
-La fondation actuelle ne fournit pas encore les mécanismes de production.
-Secure Boot, TPM 2.0, isolation, chiffrement, signatures de mises à jour,
-permissions, pare-feu et journalisation contrôlée restent à concevoir et à
-tester dans le noyau et le userspace MantleOS.
-
-La chaîne n’impose aucun compte en ligne, aucune télémétrie, aucune publicité
-et aucun service cloud. Ces engagements ne remplacent pas un audit.
-
-## Profils
-
-- **Personal** : poste local quotidien, lorsque le userspace sera disponible.
-- **Education** : politiques et gestion d’établissement sans surveillance cachée.
-- **Government** : dépôts internes, réseaux isolés et durcissement futur.
-
-Ces profils sont des axes d’architecture, pas des certifications.
-
-## Contribution
-
-Lire [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) et
-[docs/BUILDING.md](docs/BUILDING.md), conserver la séparation noyau/userspace,
-ajouter des tests aux composants et documenter les limites. Ne jamais annoncer
-un boot ou une capacité qui n’a pas été réellement compilée et testée.
+Le socle ne contient pas de télémétrie obligatoire, de publicité, de tracking,
+de compte cloud obligatoire ou d’analytics intégrés. Cela ne constitue pas une
+promesse absolue de sécurité : les protections de production, le chiffrement,
+Secure Boot, les permissions et l’isolation restent à implémenter et à auditer.
 
 ## Licence
 
-Le code original est distribué sous [licence MIT](LICENSE). Les composants
-tiers conservés dans le dépôt gardent leurs licences respectives.
+Le code original MantleOS est distribué sous licence MIT. Cela signifie que le
+code peut être utilisé, étudié, modifié et redistribué selon les conditions
+simples précisées dans LICENSE. Les composants tiers conservent leurs licences
+respectives.
 
 ## Avertissement
 
-MantleOS est un noyau expérimental indépendant, pas encore un système utilisable
-au quotidien. Ne l’utilisez pas dans un environnement critique, sur des données
-irremplaçables ou comme système certifié avant stabilisation et audits.
+MantleOS est actuellement un projet expérimental. L’ISO peut être générée sans
+être encore validée comme système amorçable. Ne l’installez pas sur votre
+ordinateur principal et ne l’utilisez pas avec des données irremplaçables.

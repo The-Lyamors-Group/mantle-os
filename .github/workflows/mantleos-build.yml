@@ -7,6 +7,8 @@ on:
 jobs:
   image:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +33,24 @@ jobs:
 
       - name: Boot MantleOS in QEMU UEFI
         run: sh ./tests/qemu-boot.sh
+
+      - name: Publish validated GitHub Release
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_type=""
+          case "$GITHUB_REF_NAME" in
+            *-alpha*|*-beta*|*-rc*) release_type="--prerelease" ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "MantleOS $GITHUB_REF_NAME" \
+            $release_type \
+            --notes "Build MantleOS validé par la CI : compilation, vérification SHA-256 et boot UEFI QEMU réussis." \
+            build/out/mantleos-amd64.iso \
+            build/out/mantleos-amd64.iso.sha256 \
+            build/out/mantleos-build-info.txt
 
       - name: Preserve build and serial diagnostics
         if: always()
