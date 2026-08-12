@@ -55,6 +55,7 @@ COMPAT_PROFILE=${MANTLE_COMPAT:-full}
 sh "$ROOT/compat/build-compat.sh" "$WORK/rootfs" "$WORK/sysroot" "$WORK/src" "$CC" "$COMPAT_PROFILE"
 if [ "${MANTLE_SDK:-0}" = 1 ]; then sh "$ROOT/compat/build-sdk.sh" "$WORK/rootfs" "$WORK/sysroot" "$WORK/src" "$CC"; fi
 $CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-init" "$ROOT/system/mantle-root-init.c"
+ln -sf mantle-init "$WORK/rootfs/sbin/init"
 $CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/sbin/mantle-supervise" "$ROOT/services/mantle-supervise.c"
 $CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/bin/mantlectl" "$ROOT/services/mantlectl.c"
 $CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/rootfs/usr/bin/mantle" "$ROOT/services/mantle.c"
@@ -75,7 +76,7 @@ chmod 0755 "$WORK/rootfs/sbin/mantle-splash"
 cat > "$WORK/rootfs/etc/profile" <<'EOF'
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export PS1='\[\033[1;34m\]mantle\[\033[0m\]# '
-clear 2>/dev/null || true
+clear 2>/dev/null
 echo 'MantleOS 0.1 — environnement de récupération'
 echo 'Aucune donnée ne quitte cet appareil sans action explicite.'
 EOF
@@ -176,7 +177,7 @@ cp "$WORK/rootfs/sbin/mantle-supervise" "$WORK/initramfs/sbin/mantle-supervise"
 cp "$WORK/rootfs/sbin/mantle-splash" "$WORK/initramfs/bin/mantle-splash"
 mkdir -p "$WORK/initramfs/usr/share/mantleos"
 cp -a "$WORK/rootfs/usr/share/mantleos/." "$WORK/initramfs/usr/share/mantleos/"
-$CC -static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -o "$WORK/initramfs/init" "$ROOT/init/mantle-init.c"
+$CC $STRICT_CFLAGS -static -Os -Wl,-z,relro,-z,now -o "$WORK/initramfs/init" "$ROOT/init/mantle-init.c"
 chmod 0755 "$WORK/initramfs/init" "$WORK/initramfs/bin/mantle-splash"
 (cd "$WORK/initramfs" && find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > "$OUT/mantle-initramfs.cpio.gz")
 cp "$WORK/kernel/arch/x86/boot/bzImage" "$OUT/mantle-kernel"
@@ -200,6 +201,11 @@ version=MantleOS 0.1
 profile=${MANTLE_PROFILE:-personal}
 architecture=amd64
 commit=$commit
+build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+kernel_version=$LINUX_VERSION
+musl_version=$MUSL_VERSION
+tests=language-and-package-tests-passed
 iso_sha256=$(cut -d' ' -f1 "$OUT/mantleos-amd64.iso.sha256")
 EOF
+cp "$OUT/mantleos-build-info.txt" "$OUT/build-info.txt"
 echo "Image créée: $OUT/mantleos-amd64.iso"

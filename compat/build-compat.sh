@@ -26,8 +26,8 @@ unpack "$SRC/zlib.tar.gz" "$SRC/zlib-1.3.1"
 fetch https://www.openssl.org/source/openssl-3.4.1.tar.gz "$SRC/openssl.tar.gz"
 unpack "$SRC/openssl.tar.gz" "$SRC/openssl-3.4.1"
 (cd "$SRC/openssl-3.4.1" && CC="$CC" ./Configure linux-x86_64 no-shared no-tests --prefix="$SYSROOT" --openssldir=/etc/ssl && make -j"$(nproc)" && make install_sw)
-cp -a "$SYSROOT/lib/." "$ROOTFS/usr/lib/" 2>/dev/null || true
-cp -a "$SYSROOT/bin/openssl" "$ROOTFS/usr/bin/" 2>/dev/null || true
+cp -a "$SYSROOT/lib/." "$ROOTFS/usr/lib/"
+cp -a "$SYSROOT/bin/openssl" "$ROOTFS/usr/bin/"
 
 fetch https://curl.se/download/curl-8.10.1.tar.xz "$SRC/curl.tar.xz"
 unpack "$SRC/curl.tar.xz" "$SRC/curl-8.10.1"

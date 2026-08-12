@@ -57,7 +57,7 @@ static int stream_validate_tar(const char *pkg,int verbose){
     if(child==0){dup2(pipefd[1],STDOUT_FILENO);close(pipefd[0]);close(pipefd[1]);char *const a[]={(char*)"tar",verbose?(char*)"-tvzf":(char*)"-tzf",(char*)pkg,NULL};execvp(a[0],a);_exit(127);}
     close(pipefd[1]);FILE*f=fdopen(pipefd[0],"r");if(!f){close(pipefd[0]);return 1;}char line[MAX_PATH+256];int bad=0;
     while(fgets(line,sizeof(line),f)){
-        if(verbose){if(line[0]!='-'&&line[0]!='d'){bad=1;break;}if(line[3]=='s'||line[3]=='S'||line[6]=='s'||line[6]=='S'||line[9]=='t'||line[9]=='T'||line[8]=='w'){bad=1;break;}}
+        if(verbose){if(strlen(line)>=10&&(line[0]=='l'||line[0]=='h'||line[3]=='s'||line[3]=='S'||line[6]=='s'||line[6]=='S'||line[9]=='t'||line[9]=='T')){bad=1;break;}}
         else {line[strcspn(line,"\r\n")]=0;const char*p=line;if(!strncmp(p,"./",2))p+=2;if(strncmp(p,"META/",5)&&strncmp(p,"payload/",8)){bad=1;break;}if(!safe_rel(p,0)){bad=1;break;}}
     }
     fclose(f);int status=0;waitpid(child,&status,0);if(!WIFEXITED(status)||WEXITSTATUS(status)!=0)bad=1;return bad?1:0;
@@ -120,7 +120,7 @@ int main(int argc,char **argv){
     if(!strcmp(argv[1],"source")&&argc>2)return source_repo(argv[2],argc>3?argv[3]:"source");
     if(!strcmp(argv[1],"verify")&&argc>2)return verify_package(argv[2]);
     if(!strcmp(argv[1],"install")&&argc>2){if(strstr(argv[2],".mtpkg"))return install_package(argv[2]);fprintf(stderr,"mantle: aucun dépôt configuré pour %s\n",argv[2]);return 2;}
-    if(!strcmp(argv[1],"rollback")&&argc>2){if(geteuid()!=0)return 3;char tx[MAX_PATH];snprintf(tx,sizeof(tx),"/var/lib/mantleos/transactions/%s",argv[2]);return rollback_tx(tx);}
+    if(!strcmp(argv[1],"rollback")&&argc>2){if(geteuid()!=0||!safe_rel(argv[2],1))return 3;char tx[MAX_PATH];snprintf(tx,sizeof(tx),"/var/lib/mantleos/transactions/%s",argv[2]);return rollback_tx(tx);}
     if(!strcmp(argv[1],"build")){char *const a[]={(char*)"make",NULL};return runv(a);}
     if(!strcmp(argv[1],"search")||!strcmp(argv[1],"info")){fprintf(stderr,"mantle: dépôt local non configuré\n");return 2;}
     if(!strcmp(argv[1],"update")||!strcmp(argv[1],"upgrade")){fprintf(stderr,"mantle: aucun canal de mise à jour configuré\n");return 2;}

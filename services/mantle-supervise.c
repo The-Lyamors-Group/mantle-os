@@ -35,7 +35,7 @@ int main(void) {
     for (int i=0; i<60 && !stopping; i++) { if (access("/run/mantle-splash.done", F_OK)==0) break; usleep(100000); }
     int pidfd=open("/run/mantle-supervise.pid",O_WRONLY|O_CREAT|O_TRUNC,0644); if(pidfd>=0){dprintf(pidfd,"%ld\n",(long)getpid());close(pidfd);}
     ensure_service("log","/sbin/mantle-logd"); ensure_service("network","/sbin/mantle-network");
-    int services_ready=0;for(int i=0;i<100&&!stopping;i++){if(service_ready("log")&&service_ready("network")){services_ready=1;break;}usleep(100000);}
+    int services_ready=0;for(int i=0;i<100&&!stopping;i++){if(service_ready("log")&&service_ready("network")&&access("/run/mantle/network.ready",F_OK)==0){services_ready=1;break;}usleep(100000);}
     if(services_ready)serial_line("MANTLE_SERVICES_OK");
     fprintf(stderr, "[mantle-supervise] supervision console active\n");
     log_message("supervision console active");

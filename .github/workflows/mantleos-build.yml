@@ -10,14 +10,39 @@ jobs:
       - name: Install Linux build and boot dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex perl python3 autoconf automake libtool gawk cmake ninja-build libssl-dev libelf-dev cpio xz-utils bzip2 curl xorriso grub-efi-amd64-bin grub-pc-bin grub-common mtools e2fsprogs util-linux imagemagick git qemu-system-x86 ovmf
+          sudo apt-get install -y build-essential gcc clang bc bison flex perl python3 autoconf automake libtool gawk cmake ninja-build libssl-dev libelf-dev cpio xz-utils bzip2 curl xorriso grub-efi-amd64-bin grub-pc-bin grub-common mtools e2fsprogs util-linux imagemagick git qemu-system-x86 ovmf
       - name: Build MantleOS image
-        run: sudo env MANTLE_PROFILE=personal MANTLE_COMPAT=full MANTLE_SDK=0 sh ./build.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          sudo mkdir -p build/out
+          sudo env MANTLE_PROFILE=personal MANTLE_COMPAT=full MANTLE_SDK=0 sh ./build.sh 2>&1 | sudo tee build/out/build.log
+      - name: Host C sanitizer checks
+        run: sh ./tests/host-sanitizers.sh
+      - name: Static layout and offline site checks
+        shell: pwsh
+        run: |
+          ./tests/check-layout.ps1
+          ./tests/check-compat.ps1
       - name: Verify initramfs and image
         run: sudo sh ./tests/verify-image.sh
       - name: Boot MantleOS in QEMU UEFI
         run: sudo sh ./tests/qemu-boot.sh
+      - name: Record passed boot tests
+        run: |
+          printf 'tests=build-language-package-host-qemu-passed\n' | sudo tee -a build/out/mantleos-build-info.txt
+          printf 'tests=build-language-package-host-qemu-passed\n' | sudo tee -a build/out/build-info.txt
+      - name: Preserve build and serial diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mantleos-diagnostics-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            build/out/build.log
+            build/out/qemu-serial.log
       - name: Publish ISO and build metadata
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mantleos-amd64-${{ github.sha }}
@@ -25,9 +50,4 @@ jobs:
             build/out/mantleos-amd64.iso
             build/out/mantleos-amd64.iso.sha256
             build/out/mantleos-build-info.txt
-      - name: Static layout checks
-        shell: pwsh
-        run: ./tests/check-layout.ps1
-      - name: Compatibility and offline site checks
-        shell: pwsh
-        run: ./tests/check-compat.ps1
+            build/out/build-info.txt

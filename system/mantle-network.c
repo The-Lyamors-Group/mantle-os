@@ -20,7 +20,7 @@ int main(void){
     char mode[32]="dhcp", iface[32]="eth0", address[64]={0}, gateway[64]={0}, dns[128]={0};
     value("mode",mode,sizeof(mode));value("interface",iface,sizeof(iface));value("address",address,sizeof(address));value("gateway",gateway,sizeof(gateway));value("dns",dns,sizeof(dns));
     char *up[]={(char*)"/bin/ip",(char*)"link",(char*)"set",(char*)"dev",iface,(char*)"up",NULL};if(run(up)!=0)return 1;
-    char *addresses[]={(char*)"/bin/ip",(char*)"-4",(char*)"addr",(char*)"show",(char*)"dev",iface,NULL};
+    char *addresses[]={(char*)"/bin/ip",(char*)"addr",(char*)"show",(char*)"dev",iface,NULL};
     char *routes[]={(char*)"/bin/ip",(char*)"route",(char*)"show",(char*)"default",NULL};
     if(!strcmp(mode,"static") && address[0]){
         char *addr[]={(char*)"/bin/ip",(char*)"addr",(char*)"replace",address,(char*)"dev",iface,NULL};if(run(addr)!=0||!gateway[0])return 1;

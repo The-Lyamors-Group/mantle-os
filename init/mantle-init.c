@@ -50,7 +50,7 @@ static int switch_root(void) {
     mount("/proc","/newroot/proc",NULL,MS_MOVE,NULL); mount("/sys","/newroot/sys",NULL,MS_MOVE,NULL);
     mount("/dev","/newroot/dev",NULL,MS_MOVE,NULL); mount("/run","/newroot/run",NULL,MS_MOVE,NULL);
     if (chdir("/newroot") < 0 || chroot(".") < 0 || chdir("/") < 0) return -1;
-    char *const argv[]={(char*)"/sbin/mantle-init",NULL}; execv(argv[0],argv); return -1;
+    char *const argv[]={(char*)"/sbin/init",NULL}; execv(argv[0],argv); return -1;
 }
 
 int main(void) {

@@ -20,7 +20,9 @@ $required = @(
   'docs/mantle-package.md',
   'tests/fixtures/security.mt',
   'tests/fixtures/boot.mt',
-  'tests/fixtures/boot.mtc'
+  'tests/fixtures/boot.mtc',
+  'tests/package-tests.sh',
+  'tests/host-sanitizers.sh'
 )
 foreach ($path in $required) { if (-not (Test-Path $path)) { throw "Fichier absent: $path" } }
 $mt = Get-Content -Raw tests/fixtures/hello.mt
