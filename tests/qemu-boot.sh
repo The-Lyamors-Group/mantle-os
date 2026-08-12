@@ -118,8 +118,8 @@ QEMU_PID=$!
 
 marker_seen=1
 for _ in $(seq 1 35); do
-    if grep -Eq '^MANTLE_(ROOTFS_ERROR|ROOTFS_NOT_FOUND|ROOTFS_INVALID|ROOTFS_MAPPING_ERROR)$' "$SERIAL_LOG" 2>/dev/null; then
-        echo "[qemu] ERROR: échec rootfs détecté, arrêt immédiat" >&2
+    if grep -Eq '^(MANTLE_(ROOTFS_ERROR|ROOTFS_NOT_FOUND|ROOTFS_INVALID|ROOTFS_MAPPING_ERROR|RING3_.*ERROR)|EXCEPTION=)' "$SERIAL_LOG" 2>/dev/null; then
+        echo "[qemu] ERROR: échec kernel/ring3 détecté, arrêt immédiat" >&2
         cat "$SERIAL_LOG" >&2 || true
         kill "$QEMU_PID" 2>/dev/null || true
         wait "$QEMU_PID" 2>/dev/null || true
@@ -149,6 +149,15 @@ if [ "$marker_seen" -eq 0 ] && { [ "$QEMU_STATUS" -eq 0 ] || [ "$QEMU_STATUS" -e
         MANTLE_MB2_MODULE_FOUND \
         MANTLE_ROOTFS_OK \
         MANTLE_ELF_OK \
+        MANTLE_RING3_PREPARE \
+        MANTLE_RING3_GDT_OK \
+        MANTLE_TSS_LOADED \
+        MANTLE_RING3_TSS_OK \
+        MANTLE_USER_STACK_OK \
+        MANTLE_RING3_STACK_OK \
+        MANTLE_RING3_PAGING_OK \
+        MANTLE_RING3_ENTRY_READY \
+        MANTLE_RING3_IRET \
         MANTLE_USERSPACE_OK \
         MANTLE_INIT_USER_OK \
         MANTLE_SHELL_CONSOLE_OK; do

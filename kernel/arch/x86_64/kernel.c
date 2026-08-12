@@ -13,7 +13,17 @@ static uint16_t vga_cursor;
 
 uint8_t mantle_user_memory[0x200000u] __attribute__((aligned(4096)));
 extern uint64_t user_page_table[];
+extern uint64_t mantle_gdt[];
+extern uint64_t mantle_pd_table0[];
+extern uint64_t mantle_tss_rsp0;
 extern void mantle_syscall_entry(void);
+extern void mantle_exception_de(void);
+extern void mantle_exception_ud(void);
+extern void mantle_exception_df(void);
+extern void mantle_exception_np(void);
+extern void mantle_exception_ss(void);
+extern void mantle_exception_gp(void);
+extern void mantle_exception_pf(void);
 
 static inline void outb(uint16_t port, uint8_t value)
 {
@@ -88,6 +98,161 @@ void mantle_arch_syscall_init(void)
     write_msr(0xc0000081u, (0x10ull << 48u) | (0x08ull << 32u));
     write_msr(0xc0000082u, (uint64_t)(uintptr_t)mantle_syscall_entry);
     write_msr(0xc0000084u, 0x200ull);
+}
+
+struct idt_gate {
+    uint16_t offset_low;
+    uint16_t selector;
+    uint8_t ist;
+    uint8_t attributes;
+    uint16_t offset_middle;
+    uint32_t offset_high;
+    uint32_t reserved;
+} __attribute__((packed));
+
+struct idt_descriptor {
+    uint16_t limit;
+    uint64_t base;
+} __attribute__((packed));
+
+static void serial_hex(uint64_t value);
+static void serial_decimal(uint32_t value);
+
+struct mantle_exception_frame {
+    uint64_t vector;
+    uint64_t error_code;
+    uint64_t rip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t rsp;
+    uint64_t ss;
+};
+
+static struct idt_gate idt[256];
+
+static void idt_set(uint32_t vector, void (*handler)(void))
+{
+    uintptr_t address = (uintptr_t)handler;
+    idt[vector].offset_low = (uint16_t)address;
+    idt[vector].selector = 0x08u;
+    idt[vector].ist = 0u;
+    idt[vector].attributes = 0x8eu;
+    idt[vector].offset_middle = (uint16_t)(address >> 16u);
+    idt[vector].offset_high = (uint32_t)(address >> 32u);
+    idt[vector].reserved = 0u;
+}
+
+void mantle_arch_exception_init(void)
+{
+    struct idt_descriptor descriptor;
+    uint32_t index;
+    for (index = 0u; index < 256u; ++index) {
+        idt[index].offset_low = 0u;
+        idt[index].selector = 0u;
+        idt[index].ist = 0u;
+        idt[index].attributes = 0u;
+        idt[index].offset_middle = 0u;
+        idt[index].offset_high = 0u;
+        idt[index].reserved = 0u;
+    }
+    idt_set(0u, mantle_exception_de);
+    idt_set(6u, mantle_exception_ud);
+    idt_set(8u, mantle_exception_df);
+    idt_set(11u, mantle_exception_np);
+    idt_set(12u, mantle_exception_ss);
+    idt_set(13u, mantle_exception_gp);
+    idt_set(14u, mantle_exception_pf);
+    descriptor.limit = (uint16_t)(sizeof(idt) - 1u);
+    descriptor.base = (uint64_t)(uintptr_t)idt;
+    __asm__ volatile ("lidt %0" : : "m" (descriptor));
+}
+
+void mantle_exception_dispatch(struct mantle_exception_frame *frame)
+{
+    uint64_t cr2 = 0u;
+    __asm__ volatile ("mov %%cr2, %0" : "=r" (cr2));
+    mantle_console_write("EXCEPTION=");
+    serial_decimal((uint32_t)frame->vector);
+    mantle_console_write("\nRIP="); serial_hex(frame->rip);
+    mantle_console_write("\nRSP="); serial_hex(frame->rsp);
+    mantle_console_write("\nCS="); serial_hex(frame->cs);
+    mantle_console_write("\nSS="); serial_hex(frame->ss);
+    mantle_console_write("\nRFLAGS="); serial_hex(frame->rflags);
+    mantle_console_write("\nERROR_CODE="); serial_hex(frame->error_code);
+    mantle_console_write("\nCPL="); serial_decimal((uint32_t)(frame->cs & 3u));
+    if (frame->vector == 14u) {
+        mantle_console_write("\nCR2="); serial_hex(cr2);
+    }
+    mantle_console_write("\n");
+    for (;;) {
+        __asm__ volatile ("cli; hlt");
+    }
+}
+
+static int mantle_tss_loaded(void)
+{
+    uint16_t selector;
+    __asm__ volatile ("str %0" : "=r" (selector));
+    return selector == 0x28u && mantle_tss_rsp0 != 0u;
+}
+
+static int ring3_diagnostics(uintptr_t entry, uintptr_t stack)
+{
+    uint64_t entry_pte;
+    uint64_t stack_pte;
+    uint64_t cr3;
+    uint32_t entry_index = (uint32_t)((entry - 0x400000u) / 4096u);
+    uint32_t stack_index = (uint32_t)((stack - 1u - 0x400000u) / 4096u);
+    volatile uint64_t *stack_word = (volatile uint64_t *)(stack - 8u);
+    const uint64_t sentinel = 0x4d414e544c455553ull;
+
+    mantle_console_write("MANTLE_RING3_PREPARE\n");
+    if (mantle_gdt[3] != 0x00cff2000000ffffull || mantle_gdt[4] != 0x00affa000000ffffull) {
+        mantle_console_write("MANTLE_RING3_GDT_ERROR\n");
+        return 0;
+    }
+    mantle_console_write("MANTLE_RING3_GDT_OK\n");
+    if (!mantle_tss_loaded()) {
+        mantle_console_write("MANTLE_RING3_TSS_ERROR\n");
+        return 0;
+    }
+    mantle_console_write("MANTLE_TSS_LOADED\n");
+    mantle_console_write("MANTLE_RING3_TSS_OK\n");
+    if (stack < 0x400000u || stack > 0x600000u || (stack & 0xfu) != 0u) {
+        mantle_console_write("MANTLE_RING3_STACK_ERROR\n");
+        return 0;
+    }
+    *stack_word = sentinel;
+    if (*stack_word != sentinel) {
+        mantle_console_write("MANTLE_RING3_STACK_ERROR\n");
+        return 0;
+    }
+    mantle_console_write("MANTLE_USER_STACK_OK\n");
+    mantle_console_write("MANTLE_RING3_STACK_OK\n");
+    if (entry < 0x400000u || entry >= 0x600000u || entry_index >= 512u || stack_index >= 512u) {
+        mantle_console_write("MANTLE_RING3_PAGING_ERROR\n");
+        return 0;
+    }
+    entry_pte = user_page_table[entry_index];
+    stack_pte = user_page_table[stack_index];
+    mantle_console_write("ENTRY_PTE="); serial_hex(entry_pte);
+    mantle_console_write("\nSTACK_PTE="); serial_hex(stack_pte);
+    mantle_console_write("\nKERNEL_PDE="); serial_hex(mantle_pd_table0[0]);
+    mantle_console_write("\n");
+    if ((entry_pte & 0x7u) != 0x5u || (entry_pte & 0x8000000000000000ull) != 0u ||
+        (stack_pte & 0x7u) != 0x7u || (stack_pte & 0x8000000000000000ull) == 0u ||
+        (mantle_pd_table0[0] & 0x4u) != 0u) {
+        mantle_console_write("MANTLE_RING3_PAGING_ERROR\n");
+        return 0;
+    }
+    mantle_console_write("MANTLE_RING3_PAGING_OK\n");
+    __asm__ volatile ("mov %%cr3, %0" : "=r" (cr3));
+    mantle_console_write("USER_ENTRY="); serial_hex(entry);
+    mantle_console_write("\nUSER_STACK_TOP="); serial_hex(stack);
+    mantle_console_write("\nUSER_CS=0x20\nUSER_SS=0x18\nUSER_RFLAGS=0x2\nCR3=");
+    serial_hex(cr3);
+    mantle_console_write("\nMANTLE_RING3_ENTRY_READY\nMANTLE_RING3_IRET\n");
+    return 1;
 }
 
 struct multiboot_tag {
@@ -271,7 +436,10 @@ void mantle_kernel_main(uint32_t multiboot_magic, uintptr_t multiboot_info)
         }
     }
     mantle_console_write("MANTLE_ELF_OK\n");
-    mantle_enter_user(init_image.entry, init_image.stack);
+    mantle_arch_exception_init();
+    if (ring3_diagnostics(init_image.entry, init_image.stack)) {
+        mantle_enter_user(init_image.entry, init_image.stack);
+    }
 rootfs_error:
     mantle_console_write("MANTLE_ROOTFS_ERROR\n");
     for (;;) {

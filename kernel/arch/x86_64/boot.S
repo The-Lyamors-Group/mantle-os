@@ -80,6 +80,8 @@ long_mode_entry:
 
 .section .data
 .align 8
+.globl mantle_gdt
+mantle_gdt:
 gdt:
     .quad 0x0000000000000000
     .quad 0x00af9a000000ffff
@@ -103,6 +105,8 @@ pdpt_table:
     .quad pd_table3 + 0x003
     .skip 4064
 pd_table0:
+.globl mantle_pd_table0
+mantle_pd_table0:
     .set page, 0
     .rept 2
     .quad (page * 0x200000) + 0x083
@@ -153,11 +157,62 @@ user_page_table:
 tss:
     .skip 4
 tss_rsp0:
+.globl mantle_tss_rsp0
+mantle_tss_rsp0:
     .quad 0
     .skip 96
 
 .section .text
 .code64
+.globl mantle_exception_de
+.globl mantle_exception_ud
+.globl mantle_exception_df
+.globl mantle_exception_np
+.globl mantle_exception_ss
+.globl mantle_exception_gp
+.globl mantle_exception_pf
+.extern mantle_exception_dispatch
+.type mantle_exception_common, @function
+mantle_exception_common:
+    cld
+    mov %rsp, %rdi
+    call mantle_exception_dispatch
+1:
+    cli
+    hlt
+    jmp 1b
+
+.type mantle_exception_de, @function
+mantle_exception_de:
+    pushq $0
+    pushq $0
+    jmp mantle_exception_common
+.type mantle_exception_ud, @function
+mantle_exception_ud:
+    pushq $0
+    pushq $6
+    jmp mantle_exception_common
+.type mantle_exception_df, @function
+mantle_exception_df:
+    pushq $8
+    jmp mantle_exception_common
+.type mantle_exception_np, @function
+mantle_exception_np:
+    pushq $11
+    jmp mantle_exception_common
+.type mantle_exception_ss, @function
+mantle_exception_ss:
+    pushq $12
+    jmp mantle_exception_common
+.type mantle_exception_gp, @function
+mantle_exception_gp:
+    pushq $13
+    jmp mantle_exception_common
+.type mantle_exception_pf, @function
+mantle_exception_pf:
+    pushq $14
+    jmp mantle_exception_common
+
 .globl mantle_enter_user
 .type mantle_enter_user, @function
 mantle_enter_user:
