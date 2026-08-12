@@ -1,0 +1,33 @@
+name: MantleOS build
+on:
+  push:
+  pull_request:
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build and boot dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex perl python3 autoconf automake libtool gawk cmake ninja-build libssl-dev libelf-dev cpio xz-utils bzip2 curl xorriso grub-efi-amd64-bin grub-pc-bin grub-common mtools e2fsprogs util-linux imagemagick git qemu-system-x86 ovmf
+      - name: Build MantleOS image
+        run: sudo env MANTLE_PROFILE=personal MANTLE_COMPAT=full MANTLE_SDK=0 sh ./build.sh
+      - name: Verify initramfs and image
+        run: sudo sh ./tests/verify-image.sh
+      - name: Boot MantleOS in QEMU UEFI
+        run: sudo sh ./tests/qemu-boot.sh
+      - name: Publish ISO and build metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: mantleos-amd64-${{ github.sha }}
+          path: |
+            build/out/mantleos-amd64.iso
+            build/out/mantleos-amd64.iso.sha256
+            build/out/mantleos-build-info.txt
+      - name: Static layout checks
+        shell: pwsh
+        run: ./tests/check-layout.ps1
+      - name: Compatibility and offline site checks
+        shell: pwsh
+        run: ./tests/check-compat.ps1

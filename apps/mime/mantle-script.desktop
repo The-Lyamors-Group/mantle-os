@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Script MantleOS
+Exec=/usr/bin/mantle %f
+Terminal=true
+Type=Application
+NoDisplay=true
+MimeType=text/x-mantle-script;text/x-mantle-command;
