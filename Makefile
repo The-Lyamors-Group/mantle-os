@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 PROFILE ?= personal
 export MANTLE_PROFILE=$(PROFILE)
-.PHONY: iso clean test-uefi
+.PHONY: iso clean test-uefi test-boot
 iso:
 	sh ./build.sh
 test-uefi: iso

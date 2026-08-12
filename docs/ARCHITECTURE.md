@@ -1,12 +1,28 @@
 # Architecture MantleOS
 
-MantleOS est construit autour d’un noyau Linux compilé depuis les sources, utilisé comme couche matérielle de compatibilité et non comme userspace distribué. Le userspace initial est produit dans `build/make-image.sh` à partir de BusyBox compilé dans le même environnement et de `init/mantle-init.c`, le PID 1 MantleOS.
+MantleOS ne repose pas sur Linux comme noyau et ne construit pas un rootfs de
+distribution. L’image active est une image Multiboot2 contenant le noyau
+freestanding MantleOS compilé depuis `kernel/`.
 
 ```text
-UEFI → GRUB configuré par MantleOS → Linux MantleOS → initramfs MantleOS
-     → mantle-init (PID 1) → pseudo-filesystems → console MantleOS
+UEFI → GRUB → Multiboot2 → kernel/arch/x86_64 → console VGA + COM1 → idle
 ```
 
-Les composants graphiques, services, sécurité et applications seront ajoutés derrière les interfaces `init/`, `services/`, `security/`, `desktop/` et `apps/`. Aucun fichier de `config/` de l’ancienne image live n’est utilisé par la chaîne actuelle.
+Le noyau actuel :
 
-Le profil de build est inscrit dans `/etc/mantleos/profile` afin que les couches suivantes puissent activer des politiques sans dupliquer l’image de base.
+- entre dans `_start` depuis GRUB Multiboot2 ;
+- installe une GDT et passe en mode long x86_64 ;
+- installe une identité de pages de 2 MiB pour son code initial ;
+- initialise COM1 et la mémoire vidéo VGA sans libc ;
+- écrit `MantleOS`, `MantleOS kernel demarre` et `MANTLE_KERNEL_OK` ;
+- reste dans une boucle `hlt` stable.
+
+Les frontières `memory/`, `interrupts/`, `drivers/`, `syscall/` et `scheduler/`
+sont préparées, mais leurs sous-systèmes sont encore TODO. `libc/`,
+`userspace/`, le shell et les anciens services sont conservés dans le dépôt
+pour les étapes suivantes ; ils ne sont ni compilés ni embarqués par l’ISO.
+
+GRUB est actuellement le bootloader autorisé. Le fichier ISO est généré par
+`grub-mkrescue`, puis démarré avec OVMF dans QEMU. Aucune archive de noyau,
+BusyBox, musl, initramfs, rootfs Linux ou binaire de distribution n’est requis
+par la chaîne active.

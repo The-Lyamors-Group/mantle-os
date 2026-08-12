@@ -1,55 +1,37 @@
 name: MantleOS build
+
 on:
   push:
   pull_request:
+
 jobs:
   image:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Linux build and boot dependencies
+
+      - name: Install MantleOS build and boot tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential gcc clang bc bison flex perl python3 autoconf automake libtool gawk cmake ninja-build libssl-dev libelf-dev cpio xz-utils bzip2 ca-certificates curl openssl xorriso grub-efi-amd64-bin grub-pc-bin grub-common mtools e2fsprogs util-linux imagemagick git qemu-system-x86 ovmf
-          sudo update-ca-certificates
-      - name: Verify TLS and official source endpoints
+          sudo apt-get install -y build-essential gcc binutils make grub-efi-amd64-bin grub-pc-bin grub-common xorriso mtools qemu-system-x86 ovmf coreutils
+
+      - name: Check architecture boundary
+        run: sh ./tests/check-layout.sh
+
+      - name: Verify freestanding kernel sources
+        run: sh ./tests/verify-kernel-source.sh
+
+      - name: Build MantleOS kernel and ISO
         run: |
           set -eu
-          curl --version
-          openssl version
-          ls -l /etc/ssl/certs/ca-certificates.crt
-          probe_source() {
-            url=$1
-            if curl --fail --silent --show-error --head --location --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 --proto '=https' --tlsv1.2 "$url"; then
-              return 0
-            fi
-            echo "HEAD indisponible, test GET minimal: $url" >&2
-            curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 --range 0-0 --output /dev/null --proto '=https' --tlsv1.2 "$url"
-          }
-          probe_source https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.60.tar.xz
-          probe_source https://busybox.net/downloads/busybox-1.36.1.tar.bz2
-          probe_source https://musl.libc.org/releases/musl-1.2.5.tar.gz
-      - name: Build MantleOS image
-        shell: bash
-        run: |
-          set -o pipefail
-          sudo mkdir -p build/out
-          sudo env MANTLE_PROFILE=personal MANTLE_COMPAT=full MANTLE_SDK=0 sh ./build.sh 2>&1 | sudo tee build/out/build.log
-      - name: Host C sanitizer checks
-        run: sh ./tests/host-sanitizers.sh
-      - name: Static layout and offline site checks
-        shell: pwsh
-        run: |
-          ./tests/check-layout.ps1
-          ./tests/check-compat.ps1
-      - name: Verify initramfs and image
-        run: sudo sh ./tests/verify-image.sh
+          sh ./build.sh
+
+      - name: Verify ISO metadata and checksum
+        run: sh ./tests/verify-image.sh
+
       - name: Boot MantleOS in QEMU UEFI
-        run: sudo sh ./tests/qemu-boot.sh
-      - name: Record passed boot tests
-        run: |
-          printf 'tests=build-language-package-host-qemu-passed\n' | sudo tee -a build/out/mantleos-build-info.txt
-          printf 'tests=build-language-package-host-qemu-passed\n' | sudo tee -a build/out/build-info.txt
+        run: sh ./tests/qemu-boot.sh
+
       - name: Preserve build and serial diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,7 +41,9 @@ jobs:
           path: |
             build/out/build.log
             build/out/qemu-serial.log
-      - name: Publish ISO and build metadata
+            build/out/mantleos-build-info.txt
+
+      - name: Publish validated ISO
         if: success()
         uses: actions/upload-artifact@v4
         with:
@@ -68,4 +52,3 @@ jobs:
             build/out/mantleos-amd64.iso
             build/out/mantleos-amd64.iso.sha256
             build/out/mantleos-build-info.txt
-            build/out/build-info.txt

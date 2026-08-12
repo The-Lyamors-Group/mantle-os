@@ -6,4 +6,4 @@ $escaped = $root.Replace("\", "/")
 docker build -t mantleos-builder $root
 $volume = $escaped + ":/workspace"
 docker run --rm --privileged --env "MANTLE_PROFILE=$Profile" --volume $volume mantleos-builder
-Write-Host ("ISO créée : " + (Join-Path $root "build/mantleos-amd64.iso"))
+Write-Host ("ISO créée : " + (Join-Path $root "build/out/mantleos-amd64.iso"))

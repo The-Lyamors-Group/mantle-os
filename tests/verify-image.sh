@@ -2,19 +2,14 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT="$ROOT/build/out"
-[ -s "$OUT/mantleos-amd64.iso" ] || { echo 'ISO absente' >&2; exit 1; }
-[ -s "$OUT/mantle-initramfs.cpio.gz" ] || { echo 'initramfs absent' >&2; exit 1; }
-[ -s "$OUT/mantleos-root.ext4" ] || { echo 'rootfs ext4 absent' >&2; exit 1; }
-[ -s "$OUT/mantleos-disk.img" ] || { echo 'disque persistant absent' >&2; exit 1; }
-[ -s "$OUT/mantleos-build-info.txt" ] || { echo 'métadonnées de build absentes' >&2; exit 1; }
-[ -s "$OUT/build-info.txt" ] || { echo 'build-info.txt absent' >&2; exit 1; }
-gzip -t "$OUT/mantle-initramfs.cpio.gz"
-entries=$(gzip -dc "$OUT/mantle-initramfs.cpio.gz" | cpio -t 2>/dev/null)
-printf '%s\n' "$entries" | grep -qx './init'
-printf '%s\n' "$entries" | grep -qx './sbin/mantle-supervise'
-printf '%s\n' "$entries" | grep -qx './sbin/mantle-splash'
+ISO="$OUT/mantleos-amd64.iso"
+[ -f "$ISO" ] || { echo "ISO absente: $ISO" >&2; exit 1; }
+[ -f "$OUT/mantleos-amd64.iso.sha256" ] || exit 1
+[ -f "$OUT/mantleos-build-info.txt" ] || exit 1
 sha256sum -c "$OUT/mantleos-amd64.iso.sha256"
-grep -q '^version=' "$OUT/mantleos-build-info.txt"
-grep -q '^profile=' "$OUT/mantleos-build-info.txt"
-grep -q '^commit=' "$OUT/mantleos-build-info.txt"
-echo 'MantleOS image checks: OK'
+grep -q '^boot=UEFI+GRUB+Multiboot2$' "$OUT/mantleos-build-info.txt"
+grep -q '^kernel=kernel/arch/x86_64$' "$OUT/mantleos-build-info.txt"
+if command -v xorriso >/dev/null 2>&1; then
+    xorriso -indev "$ISO" -find /boot -type f -exec lsdl 2>/dev/null | grep -q 'mantle-kernel.elf'
+fi
+echo "[verify] image MantleOS indépendante validée"
