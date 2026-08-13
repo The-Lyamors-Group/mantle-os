@@ -1,8 +1,13 @@
-ROOT := $(abspath ..)
-BUILD := $(ROOT)/build/work/kernel
-CC ?= gcc
-LD ?= ld
-CFLAGS := -std=c11 -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra -Wpedantic -Werror -O2 -I$(ROOT)/include
+BUILD ?= ../build/work/kernel
+
+ifeq ($(origin CC),default)
+CC := gcc
+endif
+ifeq ($(origin LD),default)
+LD := ld
+endif
+
+CFLAGS := -std=c11 -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra -Wpedantic -Werror -O2 -I../include
 
 .PHONY: all clean
 all: $(BUILD)/mantle-kernel.elf
@@ -35,7 +40,7 @@ $(BUILD)/process.o: process/process.c process/process.h | $(BUILD)
 	$(CC) $(CFLAGS) -c "$<" -o "$@"
 
 $(BUILD)/mantle-kernel.elf: $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o $(BUILD)/multiboot2.o $(BUILD)/syscall.o $(BUILD)/rootfs.o $(BUILD)/elf.o $(BUILD)/process.o linker.ld
-	$(LD) -nostdlib -z max-page-size=0x1000 -T linker.ld -o "$@" $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o $(BUILD)/multiboot2.o $(BUILD)/syscall.o $(BUILD)/rootfs.o $(BUILD)/elf.o $(BUILD)/process.o
+	$(LD) -m elf_x86_64 -nostdlib -z max-page-size=0x1000 -T linker.ld -o "$@" $(BUILD)/boot.o $(BUILD)/kernel.o $(BUILD)/framebuffer.o $(BUILD)/multiboot2.o $(BUILD)/syscall.o $(BUILD)/rootfs.o $(BUILD)/elf.o $(BUILD)/process.o
 
 clean:
 	rm -rf "$(BUILD)"

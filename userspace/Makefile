@@ -1,9 +1,17 @@
-ROOT := $(abspath ..)
-BUILD ?= $(ROOT)/build/work/userspace
-CC ?= gcc
-LD ?= ld
-CFLAGS := -m64 -std=c11 -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra -Wpedantic -Werror -O2 -I$(ROOT)/userspace/libc
-LDFLAGS := -nostdlib -z max-page-size=0x1000 -T $(ROOT)/userspace/linker.ld
+BUILD ?= ../build/work/userspace
+
+# GNU Make fournit historiquement CC=cc par défaut. MSYS2 ne garantit pas
+# l'existence d'un alias cc utilisable : sélectionner gcc uniquement lorsque
+# l'appelant n'a pas explicitement choisi un compilateur.
+ifeq ($(origin CC),default)
+CC := gcc
+endif
+ifeq ($(origin LD),default)
+LD := ld
+endif
+
+CFLAGS := -m64 -std=c11 -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra -Wpedantic -Werror -O2 -Ilibc
+LDFLAGS := -m elf_x86_64 -nostdlib -z max-page-size=0x1000 -T linker.ld
 
 PROGRAMS := hello init mantle mantle-shell
 

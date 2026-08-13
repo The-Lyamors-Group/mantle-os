@@ -7,13 +7,17 @@ ISO="$OUT/mantleos-amd64.iso"
 [ -f "$OUT/mantleos-amd64.iso.sha256" ] || exit 1
 [ -f "$OUT/mantleos-build-info.txt" ] || exit 1
 sha256sum -c "$OUT/mantleos-amd64.iso.sha256"
-grep -q '^boot=UEFI+GRUB+Multiboot2$' "$OUT/mantleos-build-info.txt"
+grep -Eq '^boot=UEFI\+(grub|windows-native)$' "$OUT/mantleos-build-info.txt"
 grep -q '^kernel=kernel/arch/x86_64$' "$OUT/mantleos-build-info.txt"
 if command -v xorriso >/dev/null 2>&1; then
-    listing=$(xorriso -indev "$ISO" -find /boot -type f -exec lsdl 2>/dev/null)
+    listing=$(xorriso -indev "$ISO" -find / -type f -exec lsdl 2>/dev/null)
     printf '%s\n' "$listing" | grep -q 'mantle-kernel.elf'
     printf '%s\n' "$listing" | grep -q 'mantle-rootfs.mfs'
-    printf '%s\n' "$listing" | grep -q 'grub.cfg'
+    if grep -q '^boot=UEFI+grub$' "$OUT/mantleos-build-info.txt"; then
+        printf '%s\n' "$listing" | grep -q 'grub.cfg'
+    else
+        printf '%s\n' "$listing" | grep -q 'EFI/BOOT/BOOTX64.EFI'
+    fi
 fi
 KERNEL="$ROOT/build/work/kernel/mantle-kernel.elf"
 if command -v grub-file >/dev/null 2>&1 && [ -f "$KERNEL" ]; then

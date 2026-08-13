@@ -1,4 +1,6 @@
-CC ?= cc
+ifeq ($(origin CC),default)
+CC := gcc
+endif
 CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -Werror -D_FORTIFY_SOURCE=2
 
 .PHONY: all test clean
