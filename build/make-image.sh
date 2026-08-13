@@ -128,7 +128,6 @@ else
     cp "$WORK/efi/esp.img" "$WORK/iso/EFI/esp.img"
     xorriso -as mkisofs -R -J -V MANTLEOS \
         -e EFI/esp.img -no-emul-boot \
-        -efi-boot-part "$WORK/efi/esp.img" \
         -o "$OUT/mantleos-amd64.iso" "$WORK/iso"
 fi
 
